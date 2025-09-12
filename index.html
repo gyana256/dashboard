@@ -156,6 +156,16 @@
     .sr-only { position:absolute; width:1px; height:1px; padding:0; margin:-1px; overflow:hidden; clip:rect(0,0,0,0); white-space:nowrap; border:0; }
     @media (max-width:640px){ h1 { font-size:2rem; } .chart-container { height:320px; } }
     /* Removed glass and ios-glass themes */
+    /* Mobile full-screen style for name filter */
+    .name-filter-panel.mobile-full { position:fixed; top:8%; left:50%; transform:translateX(-50%); width:92vw!important; max-height:70vh; overflow-y:auto; }
+    .name-filter-backdrop { position:fixed; inset:0; background:rgba(0,0,0,0.45); backdrop-filter:none; -webkit-backdrop-filter:none; z-index:30; }
+    /* Remove blur from name filter panel when opened (prevent background text blurriness perception) */
+    .name-filter-panel, body.theme-dark .name-filter-panel, body.theme-light .name-filter-panel { backdrop-filter:none!important; -webkit-backdrop-filter:none!important; }
+    /* No-blur mode (applied while name filter open) */
+    body.no-blur .panel,
+    body.no-blur .bg-white,
+    body.no-blur .stat-pill,
+    body.no-blur .chart-container { backdrop-filter:none!important; -webkit-backdrop-filter:none!important; }
     /* ...existing code... */
     </style>
 </head>
@@ -778,27 +788,48 @@
         // Custom Name Filter Component
         let selectedNameFilters = [];
         function setupNameFilter(){
-            document.addEventListener('click', (e)=>{
-                const panel = document.getElementById('name-filter-panel');
-                const toggle = document.getElementById('name-filter-toggle');
-                if(!panel || !toggle) return;
-                if(panel.classList.contains('hidden')) return;
-                if(!panel.contains(e.target) && !toggle.contains(e.target)) {
-                    panel.classList.add('hidden');
-                }
-            });
+            const panel = document.getElementById('name-filter-panel');
             const toggleBtn = document.getElementById('name-filter-toggle');
             const closeBtn = document.getElementById('names-close');
             const clearBtn = document.getElementById('names-clear');
             const searchInput = document.getElementById('name-filter-search');
-            if(toggleBtn) toggleBtn.addEventListener('click', ()=>{
-                document.getElementById('name-filter-panel').classList.toggle('hidden');
-                if(!document.getElementById('name-filter-panel').classList.contains('hidden')){
-                    searchInput.focus();
+            function closePanel(){
+                if(!panel) return;
+                panel.classList.add('hidden');
+                panel.classList.remove('mobile-full');
+                const backdrop = document.querySelector('.name-filter-backdrop');
+                if(backdrop) backdrop.remove();
+                document.body.style.overflow='';
+                document.body.classList.remove('no-blur');
+            }
+            document.addEventListener('click', (e)=>{
+                if(!panel || !toggleBtn) return;
+                if(panel.classList.contains('hidden')) return;
+                if(!panel.contains(e.target) && !toggleBtn.contains(e.target)) {
+                    closePanel();
                 }
             });
-            if(closeBtn) closeBtn.addEventListener('click', ()=> document.getElementById('name-filter-panel').classList.add('hidden'));
-            if(clearBtn) clearBtn.addEventListener('click', ()=> { selectedNameFilters = []; refreshNameFilterList(); render(); });
+            if(toggleBtn) toggleBtn.addEventListener('click', ()=>{
+                if(!panel) return;
+                const opening = panel.classList.contains('hidden');
+                if(opening){
+                    panel.classList.remove('hidden');
+                    if(window.innerWidth < 640){
+                        panel.classList.add('mobile-full');
+                        const backdrop = document.createElement('div');
+                        backdrop.className = 'name-filter-backdrop';
+                        backdrop.addEventListener('click', closePanel);
+                        document.body.appendChild(backdrop);
+                        document.body.style.overflow='hidden';
+                    }
+                    document.body.classList.add('no-blur');
+                    if(searchInput) searchInput.focus();
+                } else {
+                    closePanel();
+                }
+            });
+            if(closeBtn) closeBtn.addEventListener('click', closePanel);
+            if(clearBtn) clearBtn.addEventListener('click', ()=> { selectedNameFilters = []; currentPage=1; refreshNameFilterList(); render(); });
             if(searchInput) searchInput.addEventListener('input', ()=> refreshNameFilterList());
             refreshNameFilterList();
         }
@@ -823,11 +854,9 @@
                     const cb = item.querySelector('input');
                     if(e.target !== cb) cb.checked = !cb.checked;
                     const val = item.getAttribute('data-val');
-                    if(cb.checked){
-                        if(!selectedNameFilters.includes(val)) selectedNameFilters.push(val);
-                    } else {
-                        selectedNameFilters = selectedNameFilters.filter(v=> v!==val);
-                    }
+                    if(cb.checked){ if(!selectedNameFilters.includes(val)) selectedNameFilters.push(val); }
+                    else { selectedNameFilters = selectedNameFilters.filter(v=> v!==val); }
+                    currentPage = 1; // reset pagination
                     refreshNameFilterList();
                     render();
                 });
