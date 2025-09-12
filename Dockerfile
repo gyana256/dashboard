@@ -1,18 +1,19 @@
-# Lightweight production image
-FROM node:20-alpine
-ENV NODE_ENV=production \
-	DATA_DIR=/app
+# Multi-stage build to ensure node_modules kept and lean runtime
+
+FROM node:20-alpine AS deps
 WORKDIR /app
-
-# Install dependencies
 COPY package*.json ./
-RUN npm install --production
+# Build deps (sqlite3 native) – safe even if prebuilt available
+RUN apk add --no-cache python3 make g++ \
+	&& npm install --omit=dev \
+	&& npm cache clean --force
 
-# Copy application source
+FROM node:20-alpine AS runner
+ENV NODE_ENV=production \
+		DATA_DIR=/app
+WORKDIR /app
+COPY --from=deps /app/node_modules ./node_modules
 COPY . .
 
-# NOTE: Removed VOLUME instruction. Declaring a volume at /app would hide node_modules at runtime.
-# If you need persistent DB storage, mount an external volume to /app or set DATA_DIR.
-
 EXPOSE 3000
-CMD ["npm","start"]
+CMD ["node","server.js"]
