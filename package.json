@@ -11,7 +11,7 @@
   "scripts": {
     "start": "node server.js",
     "build": "echo 'no build step'",
-    "render-build": "npm ci --omit=dev || npm install --production"
+  "render-build": "(grep -q 'int.repositories' package-lock.json 2>/dev/null && echo 'Removing corporate lockfile' && rm package-lock.json || true); npm install --omit=dev --registry=https://registry.npmjs.org/"
   },
   "dependencies": {
     "express": "^4.19.2",
