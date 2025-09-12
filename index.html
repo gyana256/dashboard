@@ -1,0 +1,522 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Interactive Financial Report - September 2025</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <style>
+        body {
+            font-family: 'Inter', sans-serif;
+        }
+    html, body { overflow-x: hidden; }
+        @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap');
+        .chart-container {
+            position: relative;
+            width: 100%;
+            max-width: 800px;
+            margin-left: auto;
+            margin-right: auto;
+            height: 400px;
+            max-height: 50vh;
+        }
+        .edit-icon {
+            cursor: pointer;
+            transition: color 0.2s ease-in-out;
+        }
+        .edit-icon:hover {
+            color: #4F46E5;
+        }
+    </style>
+    <!-- Chosen Palette: Warm Neutrals with Subtle Accents -->
+    <!-- Application Structure Plan: A single-page dashboard design is chosen for an immediate, holistic view of the financial data. The structure flows logically from a high-level summary (key metrics) to data entry (adding transactions), then to visual analysis (charts), and finally to granular details (transaction table). This top-down approach allows users to get a quick overview and then progressively drill down into the data. Key interactions include adding new data which triggers a global refresh of all visual components, and filtering the transaction list to focus on specific data points. This structure provides a seamless and intuitive user experience for financial tracking and analysis. -->
+    <!-- Visualization & Content Choices: 
+        - Report Info: Total Income, Total Expenditure, Net Balance. Goal: Inform. Viz/Method: Key Metric Cards (HTML/Tailwind). Interaction: Real-time updates on data entry. Justification: Provides an immediate, at-a-glance summary of the user's financial status.
+        - Report Info: Expenditure items and their amounts. Goal: Compare/Proportions. Viz/Method: Donut Chart (Chart.js/Canvas). Interaction: Hover tooltips with details. Justification: Effectively shows the spending distribution across different categories, helping to identify major expense areas.
+        - Report Info: Daily income and expenditure over time. Goal: Show Change. Viz/Method: Line Chart (Chart.js/Canvas). Interaction: Hover tooltips showing values for specific dates. Justification: Visualizes financial trends and patterns over the month, making it easy to spot days of high activity.
+        - Report Info: All individual transactions. Goal: Organize/Explore. Viz/Method: Interactive HTML Table. Interaction: Filtering by type (income/expense) and sorting. Justification: Offers a detailed, granular view of the data, allowing users to investigate specific entries.
+    -->
+    <!-- CONFIRMATION: NO SVG graphics used. NO Mermaid JS used. -->
+</head>
+<body class="bg-gray-50 text-gray-800">
+
+    <div class="container mx-auto p-4 md:p-8">
+        <header class="text-center mb-10">
+            <h1 class="text-4xl font-bold text-gray-900">Financial Dashboard</h1>
+        </header>
+
+        <main>
+            <!-- Key Metrics Section -->
+            <section id="key-metrics" class="mb-10">
+                <div class="grid grid-cols-1 md:grid-cols-3 gap-4 md:gap-6">
+                    <div class="bg-white p-5 md:p-6 rounded-2xl shadow-md border border-gray-200">
+                        <h2 class="text-sm md:text-lg font-semibold text-gray-500 mb-1 md:mb-2">Total Income</h2>
+                        <p id="total-income" class="text-3xl md:text-4xl font-bold text-green-600">₹0</p>
+                    </div>
+                    <div class="bg-white p-5 md:p-6 rounded-2xl shadow-md border border-gray-200">
+                        <h2 class="text-sm md:text-lg font-semibold text-gray-500 mb-1 md:mb-2">Total Expenditure</h2>
+                        <p id="total-expenditure" class="text-3xl md:text-4xl font-bold text-red-600">₹0</p>
+                    </div>
+                    <div class="bg-white p-5 md:p-6 rounded-2xl shadow-md border border-gray-200">
+                        <h2 class="text-sm md:text-lg font-semibold text-gray-500 mb-1 md:mb-2">Net Balance</h2>
+                        <p id="net-balance" class="text-3xl md:text-4xl font-bold text-blue-600">₹0</p>
+                    </div>
+                </div>
+            </section>
+
+            <!-- Data Entry Section -->
+            <section class="bg-white p-6 md:p-8 rounded-2xl shadow-md mb-10 border border-gray-200">
+                <h2 class="text-2xl font-bold mb-6">Add New Transaction</h2>
+                <form id="transaction-form" class="grid grid-cols-1 md:grid-cols-4 gap-6 items-end">
+                    <div>
+                        <label for="transaction-name" class="block text-sm font-medium text-gray-700 mb-1">Name</label>
+                        <input type="text" id="transaction-name" required class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500" placeholder="e.g., Salary, Groceries">
+                    </div>
+                    <div>
+                        <label for="transaction-type" class="block text-sm font-medium text-gray-700 mb-1">Type</label>
+                        <select id="transaction-type" required class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500">
+                            <option value="expenditure">Expenditure</option>
+                            <option value="income">Income</option>
+                        </select>
+                    </div>
+                    <div>
+                        <label for="transaction-date" class="block text-sm font-medium text-gray-700 mb-1">Date</label>
+                        <input type="date" id="transaction-date" required class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500">
+                    </div>
+                    <div>
+                        <label for="transaction-amount" class="block text-sm font-medium text-gray-700 mb-1">Amount (₹)</label>
+                        <input type="number" id="transaction-amount" required min="0" class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500" placeholder="e.g., 5000">
+                    </div>
+                    <input type="hidden" id="transaction-id">
+                    <div class="md:col-span-1">
+                         <button type="submit" id="submit-button" class="w-full bg-blue-600 text-white font-bold py-2 px-4 rounded-lg hover:bg-blue-700 transition duration-300 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500">Add Transaction</button>
+                    </div>
+                </form>
+            </section>
+
+            <!-- Visualizations Section -->
+            <section class="grid grid-cols-1 lg:grid-cols-2 gap-6 md:gap-10 mb-10">
+                <div class="bg-white p-5 md:p-8 rounded-2xl shadow-md border border-gray-200">
+                    <h2 class="text-2xl font-bold mb-6 text-center">Expenditure Breakdown</h2>
+                     <p class="text-center text-gray-600 mb-4 text-sm md:text-base">Spending distribution across categories.</p>
+                    <div class="chart-container h-64 md:h-96">
+                        <canvas id="expenditure-chart"></canvas>
+                    </div>
+                </div>
+                <div class="bg-white p-5 md:p-8 rounded-2xl shadow-md border border-gray-200">
+                    <h2 class="text-2xl font-bold mb-6 text-center">Daily Financial Flow</h2>
+                    <p class="text-center text-gray-600 mb-4 text-sm md:text-base">Daily income vs expenditure.</p>
+                    <div class="chart-container h-64 md:h-96">
+                        <canvas id="flow-chart"></canvas>
+                    </div>
+                </div>
+            </section>
+            
+            <!-- Transaction History -->
+            <section class="bg-white p-6 md:p-8 rounded-2xl shadow-md border border-gray-200">
+                <h2 class="text-2xl font-bold mb-6">Transaction History</h2>
+                 <p class="text-gray-600 mb-6">Here you can see a detailed list of all your transactions. Use the filters to narrow down the data by type (income or expenditure) or sort it by date or amount to get a clearer picture of your finances.</p>
+                <div class="flex flex-wrap gap-4 mb-4">
+                    <select id="filter-type" class="border border-gray-300 rounded-lg px-4 py-2 focus:ring-2 focus:ring-blue-500">
+                        <option value="all">All Types</option>
+                        <option value="income">Income</option>
+                        <option value="expenditure">Expenditure</option>
+                    </select>
+                    <select id="sort-by" class="border border-gray-300 rounded-lg px-4 py-2 focus:ring-2 focus:ring-blue-500">
+                        <option value="date-desc">Date (Newest First)</option>
+                        <option value="date-asc">Date (Oldest First)</option>
+                        <option value="amount-desc">Amount (High to Low)</option>
+                        <option value="amount-asc">Amount (Low to High)</option>
+                    </select>
+                </div>
+                <div class="overflow-x-auto hidden md:block">
+                    <table class="min-w-full divide-y divide-gray-200">
+                        <thead class="bg-gray-50">
+                            <tr>
+                                <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Name</th>
+                                <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Date</th>
+                                <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Amount (₹)</th>
+                                <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Type</th>
+                                <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Actions</th>
+                            </tr>
+                        </thead>
+                        <tbody id="transaction-table" class="bg-white divide-y divide-gray-200">
+                            <!-- Rows will be injected by JavaScript -->
+                        </tbody>
+                    </table>
+                </div>
+                <!-- Mobile cards list -->
+                <div id="transaction-list-mobile" class="md:hidden space-y-3 mt-2"></div>
+                <div class="mt-8 text-center">
+                    <button id="download-button" class="bg-green-600 text-white font-bold py-2 px-6 rounded-lg hover:bg-green-700 transition duration-300 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-green-500">Download Updated Data</button>
+                </div>
+            </section>
+        </main>
+    </div>
+
+    <script>
+        // Load CSV data from file instead of hardcoded string
+        let transactions = [];
+        let expenditureChart, flowChart;
+    // Removed CSV fallback (SQLite backend now authoritative)
+
+        function initializeEvents() {
+            const form = document.getElementById('transaction-form');
+            form.addEventListener('submit', handleFormSubmit);
+            document.getElementById('filter-type').addEventListener('change', render);
+            document.getElementById('sort-by').addEventListener('change', render);
+            document.getElementById('download-button').addEventListener('click', downloadCsv);
+            const saveBtn = document.getElementById('save-button');
+            if (saveBtn) saveBtn.addEventListener('click', persistTransactions);
+            const today = new Date().toISOString().split('T')[0];
+            const dateEl = document.getElementById('transaction-date');
+            if (dateEl) dateEl.value = today;
+        }
+
+        // Updated loader: hit API endpoint, fallback to embedded CSV
+        document.addEventListener('DOMContentLoaded', () => {
+            fetch('/api/transactions?ts=' + Date.now())
+                .then(r => r.ok ? r.json() : Promise.reject(r.status))
+                .then(data => { transactions = data.transactions || []; reassignIds(); initializeEvents(); render(); })
+                .catch(err => { console.error('Load failed', err); initializeEvents(); render(); });
+        });
+
+        // Function to parse the specific CSV format
+        let nextId = 1;
+        function reassignIds(){
+            nextId = 1;
+            transactions = transactions.map(t => ({ ...t, id: nextId++ }));
+        }
+
+        // Function to generate and download the CSV file
+        function downloadCsv() {
+            let csvContent = "Expenditure,,,,,,,Income,,,,,,,\n";
+            csvContent += "Name,Date,Amount,Quantity,,Name,Date,Amount,,,,,,\n";
+
+            const expenditures = transactions.filter(t => t.type === 'expenditure');
+            const incomes = transactions.filter(t => t.type === 'income');
+            const maxLength = Math.max(expenditures.length, incomes.length);
+
+            for (let i = 0; i < maxLength; i++) {
+                const exp = expenditures[i] || {};
+                const inc = incomes[i] || {};
+                
+                const expRow = `${exp.name || ''},${exp.date || ''},${exp.amount || ''},,,`;
+                const incRow = `${inc.name || ''},${inc.date || ''},${inc.amount || ''},,,,,`;
+
+                csvContent += `${expRow}${incRow}\n`;
+            }
+
+            const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
+            const link = document.createElement("a");
+            const url = URL.createObjectURL(blob);
+            link.setAttribute("href", url);
+            link.setAttribute("download", "updated-financial-data.csv");
+            link.style.visibility = 'hidden';
+            document.body.appendChild(link);
+            link.click();
+            document.body.removeChild(link);
+        }
+
+        function handleFormSubmit(e) {
+            e.preventDefault();
+            const nameInput = document.getElementById('transaction-name');
+            const typeInput = document.getElementById('transaction-type');
+            const dateInput = document.getElementById('transaction-date');
+            const amountInput = document.getElementById('transaction-amount');
+            const idInput = document.getElementById('transaction-id');
+
+            const name = nameInput.value;
+            const type = typeInput.value;
+            const date = dateInput.value;
+            const amount = parseFloat(amountInput.value);
+            const id = idInput.value;
+            
+            if (!name || !date || isNaN(amount) || amount <= 0) {
+                return;
+            }
+
+            if (id) {
+                const transactionIndex = transactions.findIndex(t => t.id == id);
+                if (transactionIndex > -1) {
+                    transactions[transactionIndex] = { id: parseInt(id), type, name, date, amount };
+                }
+            } else {
+                transactions.push({ id: nextId++, type, name, date, amount });
+            }
+            
+            nameInput.value = '';
+            typeInput.value = 'expenditure';
+            dateInput.value = new Date().toISOString().split('T')[0];
+            amountInput.value = '';
+            idInput.value = '';
+            document.getElementById('submit-button').textContent = 'Add Transaction';
+
+            render();
+            schedulePersist();
+        }
+        // Auto-persist with debounce
+        let persistTimer;
+        function schedulePersist(){
+            clearTimeout(persistTimer);
+            persistTimer = setTimeout(persistTransactions, 600);
+        }
+        function persistTransactions(){
+            // Send without client-side reassignment so DB drives ordering
+            fetch('/api/transactions', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ transactions: transactions.map(({id, ...rest}) => rest) })
+            }).then(r => { if(!r.ok) throw new Error('Save failed'); return r.json(); })
+              .then(()=> fetch('/api/transactions').then(r=>r.json()).then(data=> { transactions = data.transactions || []; reassignIds(); render(); }))
+              .catch(err => console.error('Persist error:', err));
+        }
+
+        function handleEditTransaction(id) {
+            const transaction = transactions.find(t => t.id === id);
+            if (!transaction) return;
+
+            document.getElementById('transaction-id').value = transaction.id;
+            document.getElementById('transaction-name').value = transaction.name;
+            document.getElementById('transaction-type').value = transaction.type;
+            document.getElementById('transaction-date').value = transaction.date;
+            document.getElementById('transaction-amount').value = transaction.amount;
+            document.getElementById('submit-button').textContent = 'Update Transaction';
+            window.scrollTo({ top: 0, behavior: 'smooth' });
+        }
+
+        function render() {
+            updateKeyMetrics();
+            renderExpenditureChart();
+            renderFlowChart();
+            renderTransactionTable();
+        }
+
+        function formatCurrency(amount) {
+            return new Intl.NumberFormat('en-IN', { style: 'currency', currency: 'INR', minimumFractionDigits: 0 }).format(amount);
+        }
+
+        function updateKeyMetrics() {
+            const totalIncome = transactions.filter(t => t.type === 'income').reduce((sum, t) => sum + t.amount, 0);
+            const totalExpenditure = transactions.filter(t => t.type === 'expenditure').reduce((sum, t) => sum + t.amount, 0);
+            const netBalance = totalIncome - totalExpenditure;
+
+            document.getElementById('total-income').textContent = formatCurrency(totalIncome);
+            document.getElementById('total-expenditure').textContent = formatCurrency(totalExpenditure);
+            
+            const netBalanceEl = document.getElementById('net-balance');
+            netBalanceEl.textContent = formatCurrency(netBalance);
+            netBalanceEl.classList.toggle('text-green-600', netBalance >= 0);
+            netBalanceEl.classList.toggle('text-red-600', netBalance < 0);
+        }
+
+        function renderExpenditureChart() {
+            const ctx = document.getElementById('expenditure-chart').getContext('2d');
+            const expenditureData = transactions
+                .filter(t => t.type === 'expenditure')
+                .reduce((acc, t) => {
+                    const key = t.name.trim().toLowerCase();
+                    acc[key] = (acc[key] || 0) + t.amount;
+                    return acc;
+                }, {});
+
+            const labels = Object.keys(expenditureData).map(name => name.charAt(0).toUpperCase() + name.slice(1));
+            const data = Object.values(expenditureData);
+            
+            const backgroundColors = [
+                '#4F46E5', '#10B981', '#F59E0B', '#EF4444', '#3B82F6', '#8B5CF6', '#EC4899',
+                '#6366F1', '#22C55E', '#F97316', '#DC2626', '#60A5FA', '#A78BFA', '#F472B6'
+            ];
+
+            if (expenditureChart) {
+                expenditureChart.destroy();
+            }
+
+            expenditureChart = new Chart(ctx, {
+                type: 'doughnut',
+                data: {
+                    labels: labels,
+                    datasets: [{
+                        label: 'Expenditure',
+                        data: data,
+                        backgroundColor: backgroundColors,
+                        borderColor: '#ffffff',
+                        borderWidth: 2,
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    plugins: {
+                        legend: {
+                            position: 'bottom',
+                            labels: {
+                                padding: 15,
+                                font: {
+                                    size: 12
+                                }
+                            }
+                        },
+                        tooltip: {
+                            callbacks: {
+                                label: function(context) {
+                                    let label = context.label || '';
+                                    if (label) {
+                                        label += ': ';
+                                    }
+                                    if (context.parsed !== null) {
+                                        label += formatCurrency(context.parsed);
+                                    }
+                                    return label;
+                                }
+                            }
+                        }
+                    }
+                }
+            });
+        }
+        
+        function renderFlowChart() {
+            const ctx = document.getElementById('flow-chart').getContext('2d');
+            const flowData = transactions.reduce((acc, t) => {
+                const date = t.date;
+                if (!acc[date]) {
+                    acc[date] = { income: 0, expenditure: 0 };
+                }
+                acc[date][t.type] += t.amount;
+                return acc;
+            }, {});
+
+            const sortedDates = Object.keys(flowData).sort((a, b) => new Date(a) - new Date(b));
+            const labels = sortedDates;
+            const incomeData = sortedDates.map(date => flowData[date].income);
+            const expenditureData = sortedDates.map(date => flowData[date].expenditure);
+
+            if (flowChart) {
+                flowChart.destroy();
+            }
+
+            flowChart = new Chart(ctx, {
+                type: 'line',
+                data: {
+                    labels: labels,
+                    datasets: [
+                        {
+                            label: 'Income',
+                            data: incomeData,
+                            borderColor: '#10B981',
+                            backgroundColor: 'rgba(16, 185, 129, 0.1)',
+                            fill: true,
+                            tension: 0.3,
+                            pointBackgroundColor: '#10B981',
+                            pointRadius: 4
+                        },
+                        {
+                            label: 'Expenditure',
+                            data: expenditureData,
+                            borderColor: '#EF4444',
+                            backgroundColor: 'rgba(239, 68, 68, 0.1)',
+                            fill: true,
+                            tension: 0.3,
+                            pointBackgroundColor: '#EF4444',
+                            pointRadius: 4
+                        }
+                    ]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    scales: {
+                        y: {
+                            beginAtZero: true,
+                            ticks: {
+                                callback: function(value) { return '₹' + value / 1000 + 'k'; }
+                            }
+                        },
+                         x: {
+                            ticks: {
+                                maxRotation: 45,
+                                minRotation: 45
+                            }
+                        }
+                    },
+                    plugins: {
+                        tooltip: {
+                            callbacks: {
+                                label: function(context) {
+                                    let label = context.dataset.label || '';
+                                    if (label) {
+                                        label += ': ';
+                                    }
+                                    if (context.parsed.y !== null) {
+                                        label += formatCurrency(context.parsed.y);
+                                    }
+                                    return label;
+                                }
+                            }
+                        }
+                    }
+                }
+            });
+        }
+
+        function renderTransactionTable() {
+            const tableBody = document.getElementById('transaction-table');
+            if (tableBody) tableBody.innerHTML = '';
+            const mobileList = document.getElementById('transaction-list-mobile');
+            if (mobileList) mobileList.innerHTML = '';
+            
+            const filterValue = document.getElementById('filter-type').value;
+            const sortValue = document.getElementById('sort-by').value;
+
+            let filteredTransactions = transactions;
+            if(filterValue !== 'all') {
+                filteredTransactions = transactions.filter(t => t.type === filterValue);
+            }
+
+            filteredTransactions.sort((a, b) => {
+                switch(sortValue) {
+                    case 'date-asc': return new Date(a.date) - new Date(b.date);
+                    case 'amount-desc': return b.amount - a.amount;
+                    case 'amount-asc': return a.amount - b.amount;
+                    case 'date-desc':
+                    default:
+                        return new Date(b.date) - new Date(a.date);
+                }
+            });
+
+            filteredTransactions.forEach(t => {
+                if (tableBody) {
+                    const row = document.createElement('tr');
+                    row.className = 'hover:bg-gray-50';
+                    row.innerHTML = `
+                        <td class=\"px-6 py-4 whitespace-nowrap\"><div class=\"text-sm font-medium text-gray-900\">${t.name}</div></td>
+                        <td class=\"px-6 py-4 whitespace-nowrap\"><div class=\"text-sm text-gray-700\">${new Date(t.date).toLocaleDateString('en-IN', {day: 'numeric', month: 'short', year: 'numeric'})}</div></td>
+                        <td class=\"px-6 py-4 whitespace-nowrap\"><div class=\"text-sm font-semibold ${t.type === 'income' ? 'text-green-700' : 'text-gray-900'}\">${formatCurrency(t.amount)}</div></td>
+                        <td class=\"px-6 py-4 whitespace-nowrap\"><span class=\"px-3 py-1 inline-flex text-xs leading-5 font-semibold rounded-full ${t.type === 'income' ? 'bg-green-100 text-green-800' : 'bg-red-100 text-red-800'}\">${t.type}</span></td>
+                        <td class=\"px-6 py-4 whitespace-nowrap text-right text-sm font-medium\"><button aria-label=\"Edit\" class=\"edit-icon p-1 rounded hover:bg-blue-50\" onclick=\"handleEditTransaction(${t.id})\"><svg xmlns=\"http://www.w3.org/2000/svg\" class=\"h-5 w-5 text-gray-500 hover:text-blue-600 inline-block\" fill=\"none\" viewBox=\"0 0 24 24\" stroke=\"currentColor\" stroke-width=\"2\"><path stroke-linecap=\"round\" stroke-linejoin=\"round\" d=\"M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.5-1.5l-4.5 4.5m-1-5l2-2a2 2 0 013 0l4.5 4.5-5 5L14 19a2 2 0 01-3 0l-5-5a2 2 0 010-3z\" /></svg></button></td>`;
+                    tableBody.appendChild(row);
+                }
+                if (mobileList) {
+                    const card = document.createElement('div');
+                    card.className = 'bg-white border border-gray-200 rounded-xl p-4 shadow-sm flex justify-between items-start';
+                    card.innerHTML = `
+                        <div>
+                            <div class=\"text-sm font-semibold text-gray-900 mb-0.5\">${t.name}</div>
+                            <div class=\"text-xs text-gray-500 mb-1\">${new Date(t.date).toLocaleDateString('en-IN', {day: 'numeric', month: 'short'})}</div>
+                            <div class=\"text-base font-bold ${t.type === 'income' ? 'text-green-600' : 'text-gray-800'}\">${formatCurrency(t.amount)}</div>
+                            <span class=\"mt-2 inline-block text-[10px] uppercase tracking-wide font-semibold px-2 py-1 rounded ${t.type === 'income' ? 'bg-green-100 text-green-700' : 'bg-red-100 text-red-700'}\">${t.type}</span>
+                        </div>
+                        <div>
+                            <button aria-label=\"Edit\" class=\"edit-icon p-2 rounded-full hover:bg-blue-50\" onclick=\"handleEditTransaction(${t.id})\">
+                                <svg xmlns=\"http://www.w3.org/2000/svg\" class=\"h-5 w-5 text-gray-500 hover:text-blue-600\" fill=\"none\" viewBox=\"0 0 24 24\" stroke=\"currentColor\" stroke-width=\"2\"><path stroke-linecap=\"round\" stroke-linejoin=\"round\" d=\"M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.5-1.5l-4.5 4.5m-1-5l2-2a2 2 0 013 0l4.5 4.5-5 5L14 19a2 2 0 01-3 0l-5-5a2 2 0 010-3z\" /></svg>
+                            </button>
+                        </div>`;
+                    mobileList.appendChild(card);
+                }
+            });
+        }
+    </script>
+</body>
+</html>

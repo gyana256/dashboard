@@ -1,0 +1,16 @@
+{
+  "name": "financial-dashboard",
+  "version": "1.0.0",
+  "description": "Simple financial dashboard with CSV persistence",
+  "main": "server.js",
+  "type": "module",
+  "scripts": {
+    "start": "node server.js"
+  },
+  "dependencies": {
+    "express": "^4.19.2",
+    "cors": "^2.8.5",
+    "sqlite3": "^5.1.7",
+    "sqlite": "^5.1.6"
+  }
+}

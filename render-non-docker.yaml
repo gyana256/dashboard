@@ -1,0 +1,12 @@
+services:
+  - type: web
+    name: financial-dashboard-non-docker
+    env: node
+    plan: free
+    autoDeploy: true
+    buildCommand: npm install --production
+    startCommand: node server.js
+    healthCheckPath: /api/transactions
+    envVars:
+      - key: PORT
+        value: 3000

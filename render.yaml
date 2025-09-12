@@ -1,0 +1,12 @@
+services:
+  - type: web
+    name: financial-dashboard
+    env: docker
+    plan: free
+    autoDeploy: true
+    healthCheckPath: /api/transactions
+    buildCommand: docker build -t financial-dashboard .
+    startCommand: docker run -p 3000:3000 financial-dashboard
+    envVars:
+      - key: PORT
+        value: 3000
