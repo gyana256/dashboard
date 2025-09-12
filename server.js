@@ -141,7 +141,15 @@ async function oneTimeCsvImport(force = false){
 }
 
 // One-time import endpoint
-app.post('/api/import-csv-once', async (req,res) => {
+// Simple password middleware (shared secret) for mutating operations
+const ADMIN_PASSWORD = process.env.ADMIN_PASSWORD || '8763951777';
+function requirePassword(req,res,next){
+  const provided = req.headers['x-admin-password'];
+  if(provided && provided === ADMIN_PASSWORD) return next();
+  return res.status(401).json({ error: 'Unauthorized' });
+}
+
+app.post('/api/import-csv-once', requirePassword, async (req,res) => {
   try {
     const result = await oneTimeCsvImport(false);
     if(result.skipped && result.reason && result.reason.includes('already')) {
@@ -168,7 +176,7 @@ app.get('/api/transactions', async (req, res) => {
 });
 
 // Bulk replace (idempotent save from client state)
-app.post('/api/transactions', async (req, res) => {
+app.post('/api/transactions', requirePassword, async (req, res) => {
   const { transactions } = req.body;
   if (!Array.isArray(transactions)) return res.status(400).json({ error: 'Invalid payload' });
   try {
