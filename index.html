@@ -28,22 +28,147 @@
         .edit-icon:hover {
             color: #4F46E5;
         }
+    /* Pills */
+    .stat-pill { display:inline-flex; align-items:center; gap:0.5rem; border-radius:9999px; padding:0.4rem 0.9rem; font-size:0.75rem; font-weight:600; line-height:1rem; box-shadow:0 1px 2px 0 rgba(0,0,0,0.06),0 1px 3px 0 rgba(0,0,0,0.1); backdrop-filter: blur(4px); }
+    .stat-pill svg { width:16px; height:16px; }
+    /* Name filter dropdown */
+    .name-filter-toggle { border:1px solid #d1d5db; border-radius:0.5rem; padding:0.5rem 0.75rem; font-size:0.875rem; background:#fff; display:inline-flex; align-items:center; gap:0.25rem; transition: border-color .15s ease; }
+    .name-filter-toggle:hover { border-color:#9ca3af; }
+    .name-filter-panel { position:absolute; z-index:40; top:100%; left:0; margin-top:0.4rem; width:260px; background:#ffffff; border:1px solid #e5e7eb; border-radius:0.75rem; box-shadow:0 10px 25px -5px rgba(0,0,0,0.1),0 8px 10px -6px rgba(0,0,0,0.1); padding:0.75rem 0.75rem 0.9rem; animation:fadeIn .18s ease-out; }
+    .name-filter-panel header { display:flex; align-items:center; gap:0.4rem; margin-bottom:0.5rem; }
+    .name-filter-search { width:100%; border:1px solid #d1d5db; border-radius:0.5rem; padding:0.4rem 0.6rem; font-size:0.75rem; }
+    .name-filter-list { max-height:150px; overflow-y:auto; margin-top:0.4rem; }
+    .name-filter-item { display:flex; align-items:center; gap:0.5rem; padding:0.35rem 0.4rem; border-radius:0.5rem; font-size:0.75rem; cursor:pointer; }
+    .name-filter-item:hover { background:#f1f5f9; }
+    .chip { background:#eef2ff; color:#4338ca; font-size:0.65rem; padding:0.15rem 0.45rem; border-radius:9999px; font-weight:600; display:inline-flex; align-items:center; gap:0.25rem; }
+    .chip button { line-height:0; }
+    @media (max-width:640px){ .name-filter-panel { width: 92vw; left:50%; transform:translateX(-50%); } }
+    /* Simple animation used by modals */
+    @keyframes fadeIn { from { opacity:0; transform: translateY(6px);} to { opacity:1; transform:translateY(0);} }
+    .animate-fade-in { animation: fadeIn .25s ease-out; }
+    /* THEME SYSTEM: light + dark (default dark). Adjust variables only for palette tweaks. */
+    :root {
+        --color-accent: #2563eb;
+        --color-accent-rgb: 37,99,235;
+        --color-accent-soft: #dbeafe;
+        --color-danger: #dc2626;
+        --color-success: #16a34a;
+        --radius-panel: 1.25rem;
+    }
+    body.theme-dark {
+        --bg: #0f172a; /* slate-900 */
+        --bg-alt: #1e293b; /* slate-800 */
+        --bg-soft: #162132; /* custom */
+        --bg-panel: rgba(255,255,255,0.04);
+        --bg-panel-solid: #1e293b;
+        --border: rgba(255,255,255,0.10);
+        --border-strong: rgba(255,255,255,0.18);
+        --text: #f1f5f9; /* slate-100 */
+        --text-soft: #cbd5e1; /* slate-300 */
+        --text-faint: #64748b; /* slate-500 */
+        --chip-bg: rgba(var(--color-accent-rgb),0.15);
+        --chip-text: #e2e8f0;
+        --shadow: 0 4px 18px -4px rgba(0,0,0,0.55),0 2px 6px -2px rgba(0,0,0,0.35);
+        background: radial-gradient(circle at 25% 15%, #1e293b 0%, #0f172a 55%, #0a1220 100%);
+        color: var(--text);
+    }
+    body.theme-light {
+        --bg: #f1f5f9; /* slate-100 */
+        --bg-alt: #ffffff;
+        --bg-soft: #e2e8f0; /* slate-200 */
+        --bg-panel: #ffffff;
+        --bg-panel-solid: #ffffff;
+        --border: #e2e8f0;
+        --border-strong: #cbd5e1;
+        --text: #0f172a;
+        --text-soft: #334155;
+        --text-faint: #64748b;
+        --chip-bg: #dbeafe;
+        --chip-text: #1e3a8a;
+        --shadow: 0 2px 6px -1px rgba(0,0,0,0.15),0 1px 3px -1px rgba(0,0,0,0.08);
+        background: linear-gradient(140deg,#f8fafc,#eef2f7 60%,#e2e8f0);
+        color: var(--text);
+    }
+    /* Panel + card overrides */
+    .panel, body.theme-dark .bg-white, body.theme-light .bg-white {
+        background: var(--bg-panel);
+        border: 1px solid var(--border);
+        backdrop-filter: blur(10px);
+        -webkit-backdrop-filter: blur(10px);
+        border-radius: var(--radius-panel);
+        box-shadow: var(--shadow);
+        transition: background .35s, color .35s, border-color .35s;
+    }
+    body.theme-light .bg-white { background: var(--bg-panel); }
+    /* Text utilities override for theme consistency */
+    body.theme-dark .text-gray-900, body.theme-dark .text-gray-800 { color: var(--text); }
+    body.theme-dark .text-gray-700 { color: var(--text-soft); }
+    body.theme-dark .text-gray-600 { color: var(--text-faint); }
+    body.theme-dark .text-gray-500 { color: var(--text-faint); }
+    body.theme-light .text-gray-900 { color: var(--text); }
+    body.theme-light .text-gray-800 { color: var(--text-soft); }
+    /* Inputs */
+    body.theme-dark input, body.theme-dark select { background: var(--bg-soft); border-color: var(--border-strong)!important; color: var(--text); }
+    body.theme-dark input:focus, body.theme-dark select:focus { outline:none; box-shadow:0 0 0 2px rgba(var(--color-accent-rgb),0.45); border-color: var(--color-accent)!important; }
+    body.theme-light input, body.theme-light select { background: #ffffff; }
+    body.theme-light input:focus, body.theme-light select:focus { outline:none; box-shadow:0 0 0 2px rgba(var(--color-accent-rgb),0.35); border-color: var(--color-accent)!important; }
+    /* Buttons */
+    .btn-primary { background: linear-gradient(135deg,#2563eb,#1d4ed8); color:#fff; }
+    .btn-primary:hover { filter:brightness(1.08); }
+    .btn-accent-green { background: linear-gradient(135deg,#059669,#10b981); color:#fff; }
+    .btn-accent-green:hover { filter:brightness(1.1); }
+    /* Stat pill refine */
+    #filtered-total.stat-pill { background: var(--chip-bg); color: var(--chip-text); }
+    /* Name filter adjustments */
+    body.theme-dark .name-filter-toggle { background: var(--bg-soft); border:1px solid var(--border); color: var(--text); }
+    body.theme-light .name-filter-toggle { background: #ffffff; }
+    body.theme-dark .name-filter-panel { background: linear-gradient(145deg,#1e293b,#0f172a); border:1px solid var(--border-strong); }
+    body.theme-light .name-filter-panel { background: #ffffff; border:1px solid var(--border); }
+    body.theme-dark .name-filter-item:hover { background: rgba(var(--color-accent-rgb),0.18); }
+    body.theme-light .name-filter-item:hover { background: #f1f5f9; }
+    body.theme-dark .chip { background: var(--chip-bg); color: var(--chip-text); }
+    body.theme-light .chip { background: var(--chip-bg); color: var(--chip-text); }
+    /* Tables */
+    body.theme-dark table thead { background: rgba(255,255,255,0.05); }
+    body.theme-light table thead { background: #f1f5f9; }
+    body.theme-dark tbody tr:hover { background: rgba(255,255,255,0.05); }
+    body.theme-light tbody tr:hover { background: #f8fafc; }
+    /* Charts container */
+    .chart-container { transition: background .35s, border-color .35s; }
+    body.theme-dark .chart-container { background: radial-gradient(circle at 30% 40%,rgba(var(--color-accent-rgb),0.18),rgba(var(--color-accent-rgb),0.05) 60%,transparent); border:1px solid var(--border); border-radius:1rem; }
+    body.theme-light .chart-container { background: #ffffff; border:1px solid var(--border); border-radius:1rem; }
+    /* Headings */
+    h1.gradient-title { background: linear-gradient(90deg,#3b82f6,#0ea5e9,#6366f1); -webkit-background-clip:text; background-clip:text; color:transparent; }
+    /* Filter action buttons */
+    .filter-action-btn { font-weight:500; border:1px solid var(--border); background:var(--bg-soft); color:var(--text-soft); border-radius:0.65rem; line-height:1.1; }
+    .filter-action-btn:hover { color:var(--text); background:rgba(var(--color-accent-rgb),0.18); border-color:rgba(var(--color-accent-rgb),0.55); }
+    body.theme-light .filter-action-btn { background:#ffffff; color:var(--text-soft); }
+    body.theme-light .filter-action-btn:hover { background:var(--color-accent-soft); color:#1e3a8a; }
+    .filter-action-btn:focus { outline:none; box-shadow:0 0 0 2px rgba(var(--color-accent-rgb),0.4); }
+    /* Icon buttons (edit/delete) */
+    .icon-btn { width:2.25rem; height:2.25rem; display:inline-flex; align-items:center; justify-content:center; border:1px solid var(--border); border-radius:0.75rem; background:var(--bg-soft); color:var(--text-faint); transition:.25s; position:relative; }
+    .icon-btn:hover { color:var(--text); border-color:rgba(var(--color-accent-rgb),0.55); background:rgba(var(--color-accent-rgb),0.15); }
+    body.theme-light .icon-btn { background:#ffffff; }
+    body.theme-light .icon-btn:hover { background:var(--color-accent-soft); }
+    .icon-btn-danger { border-color:rgba(220,38,38,0.55); color:#dc2626; }
+    .icon-btn-danger:hover { background:rgba(220,38,38,0.15); border-color:#dc2626; color:#ef4444; }
+    .icon-btn svg { width:1.05rem; height:1.05rem; pointer-events:none; }
+    .sr-only { position:absolute; width:1px; height:1px; padding:0; margin:-1px; overflow:hidden; clip:rect(0,0,0,0); white-space:nowrap; border:0; }
+    @media (max-width:640px){ h1 { font-size:2rem; } .chart-container { height:320px; } }
+    /* Removed glass and ios-glass themes */
+    /* ...existing code... */
     </style>
-    <!-- Chosen Palette: Warm Neutrals with Subtle Accents -->
-    <!-- Application Structure Plan: A single-page dashboard design is chosen for an immediate, holistic view of the financial data. The structure flows logically from a high-level summary (key metrics) to data entry (adding transactions), then to visual analysis (charts), and finally to granular details (transaction table). This top-down approach allows users to get a quick overview and then progressively drill down into the data. Key interactions include adding new data which triggers a global refresh of all visual components, and filtering the transaction list to focus on specific data points. This structure provides a seamless and intuitive user experience for financial tracking and analysis. -->
-    <!-- Visualization & Content Choices: 
-        - Report Info: Total Income, Total Expenditure, Net Balance. Goal: Inform. Viz/Method: Key Metric Cards (HTML/Tailwind). Interaction: Real-time updates on data entry. Justification: Provides an immediate, at-a-glance summary of the user's financial status.
-        - Report Info: Expenditure items and their amounts. Goal: Compare/Proportions. Viz/Method: Donut Chart (Chart.js/Canvas). Interaction: Hover tooltips with details. Justification: Effectively shows the spending distribution across different categories, helping to identify major expense areas.
-        - Report Info: Daily income and expenditure over time. Goal: Show Change. Viz/Method: Line Chart (Chart.js/Canvas). Interaction: Hover tooltips showing values for specific dates. Justification: Visualizes financial trends and patterns over the month, making it easy to spot days of high activity.
-        - Report Info: All individual transactions. Goal: Organize/Explore. Viz/Method: Interactive HTML Table. Interaction: Filtering by type (income/expense) and sorting. Justification: Offers a detailed, granular view of the data, allowing users to investigate specific entries.
-    -->
-    <!-- CONFIRMATION: NO SVG graphics used. NO Mermaid JS used. -->
 </head>
-<body class="bg-gray-50 text-gray-800">
+<body class="theme-dark min-h-screen">
 
     <div class="container mx-auto p-4 md:p-8">
-        <header class="text-center mb-10">
-            <h1 class="text-4xl font-bold text-gray-900">Financial Dashboard</h1>
+        <header class="mb-10 flex flex-col md:flex-row md:items-center md:justify-between gap-4">
+            <h1 class="gradient-title text-4xl font-bold drop-shadow">Financial Dashboard</h1>
+            <div class="flex items-center gap-3 self-center md:self-auto">
+                <button id="theme-toggle" class="px-4 py-2 text-sm rounded-lg border border-gray-300/60 bg-white/60 backdrop-blur hover:bg-white/80 transition-colors flex items-center gap-2 font-medium">
+                    <span id="theme-toggle-icon">🌙</span><span id="theme-toggle-label">Dark</span>
+                </button>
+            </div>
         </header>
 
         <main>
@@ -95,21 +220,34 @@
                 </form>
             </section>
 
-            <!-- Visualizations Section -->
-            <section class="grid grid-cols-1 lg:grid-cols-2 gap-6 md:gap-10 mb-10">
-                <div class="bg-white p-5 md:p-8 rounded-2xl shadow-md border border-gray-200">
-                    <h2 class="text-2xl font-bold mb-6 text-center">Expenditure Breakdown</h2>
-                     <p class="text-center text-gray-600 mb-4 text-sm md:text-base">Spending distribution across categories.</p>
-                    <div class="chart-container h-64 md:h-96">
-                        <canvas id="expenditure-chart"></canvas>
-                    </div>
+            <!-- Income vs Expenditure Bar Chart -->
+            <section class="bg-white p-6 md:p-8 rounded-2xl shadow-md border border-gray-200 mb-10">
+                <h2 class="text-2xl font-bold mb-4">Income vs Expenditure</h2>
+                <p class="text-gray-600 mb-4">Bar comparison of total income, expenditure and net balance.</p>
+                <div class="chart-container h-72">
+                    <canvas id="totals-bar-chart"></canvas>
                 </div>
-                <div class="bg-white p-5 md:p-8 rounded-2xl shadow-md border border-gray-200">
-                    <h2 class="text-2xl font-bold mb-6 text-center">Daily Financial Flow</h2>
-                    <p class="text-center text-gray-600 mb-4 text-sm md:text-base">Daily income vs expenditure.</p>
-                    <div class="chart-container h-64 md:h-96">
-                        <canvas id="flow-chart"></canvas>
+            </section>
+            <!-- Averages & Projection Analytics -->
+            <section class="bg-white p-6 md:p-8 rounded-2xl shadow-md border border-gray-200 mb-10">
+                <h2 class="text-2xl font-bold mb-6">Averages & Projection</h2>
+                <div class="grid grid-cols-2 md:grid-cols-4 gap-4 mb-6" id="analytics-cards">
+                    <div class="bg-gradient-to-br from-indigo-50 to-indigo-100 rounded-xl p-4">
+                        <p class="text-xs font-medium text-indigo-600 uppercase tracking-wide">Avg Daily Income</p>
+                        <p id="avg-daily-income" class="mt-2 text-xl font-bold text-indigo-700">₹0</p>
                     </div>
+                    <div class="bg-gradient-to-br from-emerald-50 to-emerald-100 rounded-xl p-4">
+                        <p class="text-xs font-medium text-emerald-600 uppercase tracking-wide">Avg Daily Spend</p>
+                        <p id="avg-daily-spend" class="mt-2 text-xl font-bold text-emerald-700">₹0</p>
+                    </div>
+                    <div class="bg-gradient-to-br from-fuchsia-50 to-fuchsia-100 rounded-xl p-4">
+                        <p class="text-xs font-medium text-fuchsia-600 uppercase tracking-wide">Projected Month-End Net</p>
+                        <p id="projected-net" class="mt-2 text-xl font-bold text-fuchsia-700">₹0</p>
+                    </div>
+                    <!-- Days Elapsed removed -->
+                </div>
+                <div class="chart-container h-64 md:h-72">
+                    <canvas id="projection-line-chart"></canvas>
                 </div>
             </section>
             
@@ -117,7 +255,19 @@
             <section class="bg-white p-6 md:p-8 rounded-2xl shadow-md border border-gray-200">
                 <h2 class="text-2xl font-bold mb-6">Transaction History</h2>
                  <p class="text-gray-600 mb-6">Here you can see a detailed list of all your transactions. Use the filters to narrow down the data by type (income or expenditure) or sort it by date or amount to get a clearer picture of your finances.</p>
-                <div class="flex flex-wrap gap-4 mb-4">
+                <div class="flex justify-between items-center mb-3 flex-wrap gap-3">
+                    <div class="flex items-center gap-4">
+                        <h3 class="text-lg font-semibold text-gray-800">Filters</h3>
+                        <div class="flex flex-wrap gap-2 items-center" id="filtered-stats" aria-live="polite">
+                            <div id="filtered-total" class="stat-pill bg-blue-50 text-blue-700 border-blue-200">
+                                <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" d="M12 4.5v15m7.5-7.5h-15"/></svg>
+                                <span>Total: ₹0</span>
+                            </div>
+                        </div>
+                    </div>
+                    <button id="toggle-filters" aria-expanded="true" class="filter-action-btn text-sm px-4 py-2 transition">Hide Filters</button>
+                </div>
+                <div id="filter-controls" class="flex flex-wrap gap-4 mb-4 items-end">
                     <select id="filter-type" class="border border-gray-300 rounded-lg px-4 py-2 focus:ring-2 focus:ring-blue-500">
                         <option value="all">All Types</option>
                         <option value="income">Income</option>
@@ -129,6 +279,32 @@
                         <option value="amount-desc">Amount (High to Low)</option>
                         <option value="amount-asc">Amount (Low to High)</option>
                     </select>
+                    <div class="relative" id="name-filter-wrapper">
+                        <button type="button" id="name-filter-toggle" class="name-filter-toggle">
+                            <span id="name-filter-label" class="truncate max-w-[130px]">All Names</span>
+                            <svg xmlns="http://www.w3.org/2000/svg" class="w-4 h-4 opacity-70" fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" d="M6 9l6 6 6-6"/></svg>
+                        </button>
+                        <div id="name-filter-panel" class="name-filter-panel hidden">
+                            <header>
+                                <input id="name-filter-search" class="name-filter-search" placeholder="Search names..." />
+                            </header>
+                            <div id="name-chips" class="flex flex-wrap gap-1 mb-2 hidden"></div>
+                            <div class="flex justify-between items-center mb-2">
+                                <button type="button" id="names-clear" class="text-[10px] font-medium text-gray-500 hover:text-gray-700">Clear</button>
+                                <button type="button" id="names-close" class="text-[10px] font-medium text-blue-600 hover:text-blue-700">Done</button>
+                            </div>
+                            <div id="name-filter-list" class="name-filter-list text-gray-700 text-xs"></div>
+                        </div>
+                    </div>
+                    <div class="flex flex-col">
+                        <label class="text-xs text-gray-500" for="filter-from">From</label>
+                        <input type="date" id="filter-from" class="border border-gray-300 rounded-lg px-3 py-2 focus:ring-2 focus:ring-blue-500" />
+                    </div>
+                    <div class="flex flex-col">
+                        <label class="text-xs text-gray-500" for="filter-to">To</label>
+                        <input type="date" id="filter-to" class="border border-gray-300 rounded-lg px-3 py-2 focus:ring-2 focus:ring-blue-500" />
+                    </div>
+                    <button id="filter-reset" class="filter-action-btn text-sm px-4 py-2">Reset</button>
                 </div>
                 <div class="overflow-x-auto hidden md:block">
                     <table class="min-w-full divide-y divide-gray-200">
@@ -148,6 +324,15 @@
                 </div>
                 <!-- Mobile cards list -->
                 <div id="transaction-list-mobile" class="md:hidden space-y-3 mt-2"></div>
+                <!-- Pagination controls -->
+                <div id="pagination" class="mt-6 flex items-center justify-between text-sm hidden">
+                    <div id="pagination-summary" class="text-gray-500"></div>
+                    <div class="flex items-center gap-2">
+                        <button id="page-prev" class="px-3 py-1 rounded border border-gray-300 bg-white disabled:opacity-40 disabled:cursor-not-allowed">Prev</button>
+                        <span id="page-indicator" class="font-medium"></span>
+                        <button id="page-next" class="px-3 py-1 rounded border border-gray-300 bg-white disabled:opacity-40 disabled:cursor-not-allowed">Next</button>
+                    </div>
+                </div>
                 <div class="mt-8 text-center">
                     <button id="download-button" class="bg-green-600 text-white font-bold py-2 px-6 rounded-lg hover:bg-green-700 transition duration-300 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-green-500">Download Updated Data</button>
                 </div>
@@ -157,15 +342,56 @@
 
     <script>
         // Load CSV data from file instead of hardcoded string
-        let transactions = [];
-        let expenditureChart, flowChart;
+    let transactions = [];
+    let currentPage = 1; const PAGE_SIZE = 15;
+        // THEME HANDLING (simplified to dark/light only)
+        (function(){
+            const stored = localStorage.getItem('theme-preference-v2');
+            const prefersDark = window.matchMedia('(prefers-color-scheme: dark)').matches;
+            let initial = (stored === 'dark' || stored === 'light') ? stored : (prefersDark ? 'dark':'light');
+            if(stored === 'glass') initial = 'dark'; // migrate old value
+            function applyTheme(name){
+                document.body.classList.remove('theme-dark','theme-light','theme-glass','ios-glass');
+                document.body.classList.add(name === 'dark' ? 'theme-dark':'theme-light');
+            }
+            function applyLabel(){
+                const icon = document.getElementById('theme-toggle-icon');
+                const label = document.getElementById('theme-toggle-label');
+                if(!icon||!label) return;
+                if(document.body.classList.contains('theme-dark')){ icon.textContent='🌙'; label.textContent='Dark'; }
+                else { icon.textContent='☀️'; label.textContent='Light'; }
+            }
+            window.toggleTheme = function(){
+                const next = document.body.classList.contains('theme-dark') ? 'light':'dark';
+                applyTheme(next);
+                localStorage.setItem('theme-preference-v2', next);
+                applyLabel();
+                if(typeof updateChartsAndAnalytics === 'function') setTimeout(()=> updateChartsAndAnalytics(), 10);
+            };
+            applyTheme(initial);
+            document.addEventListener('DOMContentLoaded', ()=> {
+                const btn = document.getElementById('theme-toggle');
+                if(btn) btn.addEventListener('click', toggleTheme);
+                applyLabel();
+            });
+        })();
+    // Password protection state (no caching: prompt every time)
+    const ADMIN_PASSWORD = '8763951777';
+    let totalsBarChart, projectionLineChart;
     // Removed CSV fallback (SQLite backend now authoritative)
 
         function initializeEvents() {
             const form = document.getElementById('transaction-form');
             form.addEventListener('submit', handleFormSubmit);
-            document.getElementById('filter-type').addEventListener('change', render);
-            document.getElementById('sort-by').addEventListener('change', render);
+            document.getElementById('filter-type').addEventListener('change', ()=> { currentPage=1; render(); });
+            document.getElementById('sort-by').addEventListener('change', ()=> { currentPage=1; render(); });
+            // name filter events set up later (custom component)
+            document.getElementById('filter-from').addEventListener('change', ()=> { currentPage=1; render(); });
+            document.getElementById('filter-to').addEventListener('change', ()=> { currentPage=1; render(); });
+            document.getElementById('filter-reset').addEventListener('click', resetFilters);
+            setupNameFilter();
+            const toggleBtn = document.getElementById('toggle-filters');
+            if(toggleBtn) toggleBtn.addEventListener('click', toggleFilters);
             document.getElementById('download-button').addEventListener('click', downloadCsv);
             const saveBtn = document.getElementById('save-button');
             if (saveBtn) saveBtn.addEventListener('click', persistTransactions);
@@ -262,11 +488,12 @@
             clearTimeout(persistTimer);
             persistTimer = setTimeout(persistTransactions, 600);
         }
-        function persistTransactions(){
-            // Send without client-side reassignment so DB drives ordering
+        function persistTransactions(pwd){
+            const password = pwd;
+            if(!password) return; // should be supplied from modal
             fetch('/api/transactions', {
                 method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
+                headers: { 'Content-Type': 'application/json', 'X-Admin-Password': password },
                 body: JSON.stringify({ transactions: transactions.map(({id, ...rest}) => rest) })
             }).then(r => { if(!r.ok) throw new Error('Save failed'); return r.json(); })
               .then(()=> fetch('/api/transactions').then(r=>r.json()).then(data=> { transactions = data.transactions || []; reassignIds(); render(); }))
@@ -288,9 +515,16 @@
 
         function render() {
             updateKeyMetrics();
-            renderExpenditureChart();
-            renderFlowChart();
             renderTransactionTable();
+            updateChartsAndAnalytics();
+        }
+        function toggleFilters(){
+            const container = document.getElementById('filter-controls');
+            const btn = document.getElementById('toggle-filters');
+            if(!container || !btn) return;
+            const hidden = container.classList.toggle('hidden');
+            btn.textContent = hidden ? 'Show Filters' : 'Hide Filters';
+            btn.setAttribute('aria-expanded', String(!hidden));
         }
 
         function formatCurrency(amount) {
@@ -311,157 +545,17 @@
             netBalanceEl.classList.toggle('text-red-600', netBalance < 0);
         }
 
-        function renderExpenditureChart() {
-            const ctx = document.getElementById('expenditure-chart').getContext('2d');
-            const expenditureData = transactions
-                .filter(t => t.type === 'expenditure')
-                .reduce((acc, t) => {
-                    const key = t.name.trim().toLowerCase();
-                    acc[key] = (acc[key] || 0) + t.amount;
-                    return acc;
-                }, {});
-
-            const labels = Object.keys(expenditureData).map(name => name.charAt(0).toUpperCase() + name.slice(1));
-            const data = Object.values(expenditureData);
-            
-            const backgroundColors = [
-                '#4F46E5', '#10B981', '#F59E0B', '#EF4444', '#3B82F6', '#8B5CF6', '#EC4899',
-                '#6366F1', '#22C55E', '#F97316', '#DC2626', '#60A5FA', '#A78BFA', '#F472B6'
-            ];
-
-            if (expenditureChart) {
-                expenditureChart.destroy();
-            }
-
-            expenditureChart = new Chart(ctx, {
-                type: 'doughnut',
-                data: {
-                    labels: labels,
-                    datasets: [{
-                        label: 'Expenditure',
-                        data: data,
-                        backgroundColor: backgroundColors,
-                        borderColor: '#ffffff',
-                        borderWidth: 2,
-                    }]
-                },
-                options: {
-                    responsive: true,
-                    maintainAspectRatio: false,
-                    plugins: {
-                        legend: {
-                            position: 'bottom',
-                            labels: {
-                                padding: 15,
-                                font: {
-                                    size: 12
-                                }
-                            }
-                        },
-                        tooltip: {
-                            callbacks: {
-                                label: function(context) {
-                                    let label = context.label || '';
-                                    if (label) {
-                                        label += ': ';
-                                    }
-                                    if (context.parsed !== null) {
-                                        label += formatCurrency(context.parsed);
-                                    }
-                                    return label;
-                                }
-                            }
-                        }
-                    }
-                }
-            });
+        function resetFilters(){
+            document.getElementById('filter-type').value='all';
+            document.getElementById('sort-by').value='date-desc';
+            selectedNameFilters = [];
+            document.getElementById('filter-from').value='';
+            document.getElementById('filter-to').value='';
+            render();
         }
-        
-        function renderFlowChart() {
-            const ctx = document.getElementById('flow-chart').getContext('2d');
-            const flowData = transactions.reduce((acc, t) => {
-                const date = t.date;
-                if (!acc[date]) {
-                    acc[date] = { income: 0, expenditure: 0 };
-                }
-                acc[date][t.type] += t.amount;
-                return acc;
-            }, {});
+        function clearNameSelection(){ selectedNameFilters = []; render(); }
 
-            const sortedDates = Object.keys(flowData).sort((a, b) => new Date(a) - new Date(b));
-            const labels = sortedDates;
-            const incomeData = sortedDates.map(date => flowData[date].income);
-            const expenditureData = sortedDates.map(date => flowData[date].expenditure);
-
-            if (flowChart) {
-                flowChart.destroy();
-            }
-
-            flowChart = new Chart(ctx, {
-                type: 'line',
-                data: {
-                    labels: labels,
-                    datasets: [
-                        {
-                            label: 'Income',
-                            data: incomeData,
-                            borderColor: '#10B981',
-                            backgroundColor: 'rgba(16, 185, 129, 0.1)',
-                            fill: true,
-                            tension: 0.3,
-                            pointBackgroundColor: '#10B981',
-                            pointRadius: 4
-                        },
-                        {
-                            label: 'Expenditure',
-                            data: expenditureData,
-                            borderColor: '#EF4444',
-                            backgroundColor: 'rgba(239, 68, 68, 0.1)',
-                            fill: true,
-                            tension: 0.3,
-                            pointBackgroundColor: '#EF4444',
-                            pointRadius: 4
-                        }
-                    ]
-                },
-                options: {
-                    responsive: true,
-                    maintainAspectRatio: false,
-                    scales: {
-                        y: {
-                            beginAtZero: true,
-                            ticks: {
-                                callback: function(value) { return '₹' + value / 1000 + 'k'; }
-                            }
-                        },
-                         x: {
-                            ticks: {
-                                maxRotation: 45,
-                                minRotation: 45
-                            }
-                        }
-                    },
-                    plugins: {
-                        tooltip: {
-                            callbacks: {
-                                label: function(context) {
-                                    let label = context.dataset.label || '';
-                                    if (label) {
-                                        label += ': ';
-                                    }
-                                    if (context.parsed.y !== null) {
-                                        label += formatCurrency(context.parsed.y);
-                                    }
-                                    return label;
-                                }
-                            }
-                        }
-                    }
-                }
-            });
-        }
-
-        function renderTransactionTable() {
+    function renderTransactionTable() {
             const tableBody = document.getElementById('transaction-table');
             if (tableBody) tableBody.innerHTML = '';
             const mobileList = document.getElementById('transaction-list-mobile');
@@ -475,6 +569,15 @@
                 filteredTransactions = transactions.filter(t => t.type === filterValue);
             }
 
+            if(selectedNameFilters.length){
+                filteredTransactions = filteredTransactions.filter(t => selectedNameFilters.includes(t.name.toLowerCase()));
+            }
+            const fromDate = document.getElementById('filter-from').value;
+            const toDate = document.getElementById('filter-to').value;
+            if(fromDate) filteredTransactions = filteredTransactions.filter(t => t.date >= fromDate);
+            if(toDate) filteredTransactions = filteredTransactions.filter(t => t.date <= toDate);
+            // Min/Max amount filters removed
+
             filteredTransactions.sort((a, b) => {
                 switch(sortValue) {
                     case 'date-asc': return new Date(a.date) - new Date(b.date);
@@ -486,7 +589,20 @@
                 }
             });
 
-            filteredTransactions.forEach(t => {
+            const totalEl = document.getElementById('filtered-total');
+            if(totalEl){
+                const sum = filteredTransactions.reduce((s,t)=> s + t.amount, 0);
+                totalEl.querySelector('span').textContent = 'Total: ' + formatCurrency(sum);
+            }
+        // Pagination setup
+        const totalItems = filteredTransactions.length;
+        const totalPages = Math.max(1, Math.ceil(totalItems / PAGE_SIZE));
+        if(currentPage > totalPages) currentPage = totalPages;
+        const startIdx = (currentPage - 1) * PAGE_SIZE;
+        const pageItems = filteredTransactions.slice(startIdx, startIdx + PAGE_SIZE);
+        updatePagination(totalItems, totalPages, startIdx + 1, startIdx + pageItems.length);
+
+        pageItems.forEach(t => {
                 if (tableBody) {
                     const row = document.createElement('tr');
                     row.className = 'hover:bg-gray-50';
@@ -495,7 +611,10 @@
                         <td class=\"px-6 py-4 whitespace-nowrap\"><div class=\"text-sm text-gray-700\">${new Date(t.date).toLocaleDateString('en-IN', {day: 'numeric', month: 'short', year: 'numeric'})}</div></td>
                         <td class=\"px-6 py-4 whitespace-nowrap\"><div class=\"text-sm font-semibold ${t.type === 'income' ? 'text-green-700' : 'text-gray-900'}\">${formatCurrency(t.amount)}</div></td>
                         <td class=\"px-6 py-4 whitespace-nowrap\"><span class=\"px-3 py-1 inline-flex text-xs leading-5 font-semibold rounded-full ${t.type === 'income' ? 'bg-green-100 text-green-800' : 'bg-red-100 text-red-800'}\">${t.type}</span></td>
-                        <td class=\"px-6 py-4 whitespace-nowrap text-right text-sm font-medium\"><button aria-label=\"Edit\" class=\"edit-icon p-1 rounded hover:bg-blue-50\" onclick=\"handleEditTransaction(${t.id})\"><svg xmlns=\"http://www.w3.org/2000/svg\" class=\"h-5 w-5 text-gray-500 hover:text-blue-600 inline-block\" fill=\"none\" viewBox=\"0 0 24 24\" stroke=\"currentColor\" stroke-width=\"2\"><path stroke-linecap=\"round\" stroke-linejoin=\"round\" d=\"M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.5-1.5l-4.5 4.5m-1-5l2-2a2 2 0 013 0l4.5 4.5-5 5L14 19a2 2 0 01-3 0l-5-5a2 2 0 010-3z\" /></svg></button></td>`;
+                        <td class="px-6 py-4 whitespace-nowrap text-right text-sm font-medium space-x-2">
+                            <button aria-label="Edit" class="icon-btn" onclick="handleEditTransaction(${t.id})"><span class="sr-only">Edit</span><svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.5-1.5l-4.5 4.5m-1-5l2-2a2 2 0 013 0l4.5 4.5-5 5L14 19a2 2 0 01-3 0l-5-5a2 2 0 010-3z" /></svg></button>
+                            <button aria-label="Delete" class="icon-btn icon-btn-danger" onclick="handleDeleteTransaction(${t.id})"><span class="sr-only">Delete</span><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="3 6 5 6 21 6"/><path d="M19 6l-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6m5 0V4a2 2 0 0 1 2-2h0a2 2 0 0 1 2 2v2"/><line x1="10" y1="11" x2="10" y2="17"/><line x1="14" y1="11" x2="14" y2="17"/></svg></button>
+                        </td>`;
                     tableBody.appendChild(row);
                 }
                 if (mobileList) {
@@ -507,15 +626,233 @@
                             <div class=\"text-xs text-gray-500 mb-1\">${new Date(t.date).toLocaleDateString('en-IN', {day: 'numeric', month: 'short'})}</div>
                             <div class=\"text-base font-bold ${t.type === 'income' ? 'text-green-600' : 'text-gray-800'}\">${formatCurrency(t.amount)}</div>
                             <span class=\"mt-2 inline-block text-[10px] uppercase tracking-wide font-semibold px-2 py-1 rounded ${t.type === 'income' ? 'bg-green-100 text-green-700' : 'bg-red-100 text-red-700'}\">${t.type}</span>
-                        </div>
-                        <div>
-                            <button aria-label=\"Edit\" class=\"edit-icon p-2 rounded-full hover:bg-blue-50\" onclick=\"handleEditTransaction(${t.id})\">
-                                <svg xmlns=\"http://www.w3.org/2000/svg\" class=\"h-5 w-5 text-gray-500 hover:text-blue-600\" fill=\"none\" viewBox=\"0 0 24 24\" stroke=\"currentColor\" stroke-width=\"2\"><path stroke-linecap=\"round\" stroke-linejoin=\"round\" d=\"M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.5-1.5l-4.5 4.5m-1-5l2-2a2 2 0 013 0l4.5 4.5-5 5L14 19a2 2 0 01-3 0l-5-5a2 2 0 010-3z\" /></svg>
-                            </button>
+                            <div class=\"flex gap-2 mt-2\">
+                                <button aria-label=\"Edit\" class=\"icon-btn\" onclick=\"handleEditTransaction(${t.id})\"><span class=\"sr-only\">Edit</span><svg xmlns=\"http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.5-1.5l-4.5 4.5m-1-5l2-2a2 2 0 013 0l4.5 4.5-5 5L14 19a2 2 0 01-3 0l-5-5a2 2 0 010-3z" /></svg></button>
+                                <button aria-label=\"Delete\" class=\"icon-btn icon-btn-danger\" onclick=\"handleDeleteTransaction(${t.id})\"><span class=\"sr-only\">Delete</span><svg xmlns=\"http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="3 6 5 6 21 6"/><path d="M19 6l-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6m5 0V4a2 2 0 0 1 2-2h0a2 2 0 0 1 2 2v2"/><line x1="10" y1="11" x2="10" y2="17"/><line x1="14" y1="11" x2="14" y2="17"/></svg></button>
+                            </div>
                         </div>`;
                     mobileList.appendChild(card);
                 }
             });
+        }
+    function updatePagination(totalItems, totalPages, from, to){
+        const wrap = document.getElementById('pagination');
+        if(!wrap) return;
+        if(totalItems <= PAGE_SIZE){ wrap.classList.add('hidden'); return; } else wrap.classList.remove('hidden');
+        const summary = document.getElementById('pagination-summary');
+        const indicator = document.getElementById('page-indicator');
+        const prev = document.getElementById('page-prev');
+        const next = document.getElementById('page-next');
+        if(summary) summary.textContent = `${from}-${to} of ${totalItems}`;
+        if(indicator) indicator.textContent = `Page ${currentPage} / ${totalPages}`;
+        if(prev){ prev.disabled = currentPage === 1; prev.onclick = ()=> { if(currentPage>1){ currentPage--; renderTransactionTable(); } }; }
+        if(next){ next.disabled = currentPage === totalPages; next.onclick = ()=> { if(currentPage < totalPages){ currentPage++; renderTransactionTable(); } }; }
+    }
+        // Modal infrastructure
+        function createModal(id, innerHtml){
+            let existing = document.getElementById(id);
+            if(existing) existing.remove();
+            const wrap = document.createElement('div');
+            wrap.id = id;
+            wrap.className = 'fixed inset-0 z-50 flex items-center justify-center bg-black/40 backdrop-blur-sm';
+            wrap.innerHTML = `\n<div class="bg-white rounded-2xl shadow-2xl w-full max-w-sm p-6 animate-fade-in">${innerHtml}</div>`;
+            document.body.appendChild(wrap);
+            return wrap;
+        }
+        function closeModal(id){ const el = document.getElementById(id); if(el) el.remove(); }
+        function passwordModal(actionLabel, onSuccess){
+            const modal = createModal('password-modal', `
+                <h3 class="text-xl font-semibold mb-4 text-gray-800">Admin Password</h3>
+                <p class="text-sm text-gray-600 mb-4">Enter password to ${actionLabel}.</p>
+                <input type="password" id="admin-pass-input" class="w-full border border-gray-300 rounded-lg px-4 py-2 focus:ring-2 focus:ring-blue-500 focus:border-blue-500 mb-4" placeholder="Password" autofocus />
+                <div id="pass-error" class="text-red-600 text-sm mb-3 hidden">Incorrect password.</div>
+                <div class="flex justify-end gap-3">
+                    <button id="pass-cancel" class="px-4 py-2 rounded-lg bg-gray-100 hover:bg-gray-200 text-gray-700 font-medium">Cancel</button>
+                    <button id="pass-submit" class="px-4 py-2 rounded-lg bg-blue-600 hover:bg-blue-700 text-white font-semibold shadow">Confirm</button>
+                </div>`);
+            const input = modal.querySelector('#admin-pass-input');
+            const err = modal.querySelector('#pass-error');
+            modal.querySelector('#pass-cancel').onclick = ()=> closeModal('password-modal');
+            modal.querySelector('#pass-submit').onclick = () => {
+                if(input.value === ADMIN_PASSWORD){
+                    closeModal('password-modal');
+                    onSuccess(input.value);
+                } else { err.classList.remove('hidden'); }
+            };
+            input.addEventListener('keydown', e=> { if(e.key==='Enter') modal.querySelector('#pass-submit').click(); });
+        }
+        function confirmModal(title, message, confirmLabel, confirmColorClasses, onConfirm){
+            const modal = createModal('confirm-modal', `
+                <h3 class="text-xl font-semibold mb-2 text-gray-800">${title}</h3>
+                <p class="text-sm text-gray-600 mb-5">${message}</p>
+                <div class="flex justify-end gap-3">
+                    <button id="conf-cancel" class="px-4 py-2 rounded-lg bg-gray-100 hover:bg-gray-200 text-gray-700 font-medium">Cancel</button>
+                    <button id="conf-ok" class="px-4 py-2 rounded-lg ${confirmColorClasses} text-white font-semibold shadow">${confirmLabel}</button>
+                </div>`);
+            modal.querySelector('#conf-cancel').onclick = ()=> closeModal('confirm-modal');
+            modal.querySelector('#conf-ok').onclick = ()=> { closeModal('confirm-modal'); onConfirm(); };
+        }
+
+        // Override CRUD handlers with password protection
+        const originalHandleFormSubmit = handleFormSubmit;
+        handleFormSubmit = function(e){
+            e.preventDefault();
+            const isUpdate = !!document.getElementById('transaction-id').value;
+            passwordModal(isUpdate ? 'update this transaction' : 'add this transaction', (pwd)=> {
+                originalHandleFormSubmit(e);
+                persistTransactions(pwd);
+            });
+        }
+        const originalHandleEdit = handleEditTransaction;
+        handleEditTransaction = function(id){
+            passwordModal('edit this transaction', ()=> {
+                originalHandleEdit(id);
+            });
+        }
+        function handleDeleteTransaction(id){
+            const t = transactions.find(tr=> tr.id === id);
+            if(!t) return;
+            passwordModal('delete this transaction', (pwd)=> {
+                confirmModal('Delete Transaction', `Are you sure you want to delete "${t.name}" for ${formatCurrency(t.amount)}? This cannot be undone.`, 'Delete', 'bg-red-600 hover:bg-red-700', ()=> {
+                    const idx = transactions.findIndex(tr=> tr.id === id);
+                    if(idx === -1) return;
+                    transactions.splice(idx,1);
+                    reassignIds();
+                    render();
+                    persistTransactions(pwd);
+                });
+            });
+        }
+
+        function updateChartsAndAnalytics(){
+            // totals bar
+            const income = transactions.filter(t=>t.type==='income').reduce((s,t)=>s+t.amount,0);
+            const expend = transactions.filter(t=>t.type==='expenditure').reduce((s,t)=>s+t.amount,0);
+            const net = income - expend;
+            const barCtx = document.getElementById('totals-bar-chart').getContext('2d');
+            if(totalsBarChart) totalsBarChart.destroy();
+            totalsBarChart = new Chart(barCtx, {
+                type: 'bar',
+                data: { labels:['Income','Expenditure','Net'], datasets:[{ label:'Amount (₹)', data:[income, expend, net], backgroundColor:['#16a34a','#dc2626', net>=0?'#2563eb':'#7f1d1d'] }]},
+                options: { responsive:true, plugins:{ tooltip:{ callbacks:{ label:c=> formatCurrency(c.parsed.y) } } }, scales:{ y:{ beginAtZero:true } } }
+            });
+            // Projection & averages
+            if(!transactions.length) return;
+            const byDate = {};
+            transactions.forEach(t=> { if(!byDate[t.date]) byDate[t.date]={ income:0, expenditure:0 }; byDate[t.date][t.type]+=t.amount; });
+            const sortedDates = Object.keys(byDate).sort((a,b)=> new Date(a)-new Date(b));
+            const cumulative = [];
+            let running = 0; sortedDates.forEach(d=> { running += (byDate[d].income - byDate[d].expenditure); cumulative.push({date:d, value:running}); });
+            const first = new Date(sortedDates[0]);
+            const last = new Date(sortedDates[sortedDates.length-1]);
+            const daysElapsed = Math.max(1, Math.round((last-first)/86400000)+1);
+            const avgIncome = income / daysElapsed;
+            const avgSpend = expend / daysElapsed;
+            const daysInMonth = new Date(last.getFullYear(), last.getMonth()+1, 0).getDate();
+            const projectedNet = Math.round((net / daysElapsed) * daysInMonth);
+            document.getElementById('avg-daily-income').textContent = formatCurrency(Math.round(avgIncome));
+            document.getElementById('avg-daily-spend').textContent = formatCurrency(Math.round(avgSpend));
+            document.getElementById('projected-net').textContent = formatCurrency(projectedNet);
+            // Days elapsed removed
+            const projCtx = document.getElementById('projection-line-chart').getContext('2d');
+            if(projectionLineChart) projectionLineChart.destroy();
+            // Extend projection to month end
+            const projectedDates = [...cumulative.map(p=>p.date)];
+            const lastDateObj = last;
+            while(projectedDates.length < daysInMonth){
+                const next = new Date(first.getFullYear(), first.getMonth(), projectedDates.length+1);
+                if(next > lastDateObj){
+                    const projectedValue = Math.round((net/daysElapsed) * (projectedDates.length+1));
+                    cumulative.push({ date: next.toISOString().split('T')[0], value: projectedValue });
+                    projectedDates.push(next.toISOString().split('T')[0]);
+                } else projectedDates.push(next.toISOString().split('T')[0]);
+            }
+            projectionLineChart = new Chart(projCtx, {
+                type:'line',
+                data:{ labels: cumulative.map(p=>p.date), datasets:[{ label:'Cumulative Net (Projected)', data: cumulative.map(p=>p.value), borderColor:'#6366F1', backgroundColor:'rgba(99,102,241,0.15)', fill:true, tension:0.35 }]},
+                options:{ responsive:true, plugins:{ tooltip:{ callbacks:{ label:c=> formatCurrency(c.parsed.y) } } }, scales:{ y:{ beginAtZero:false } } }
+            });
+            // Populate name dropdown options
+            refreshNameFilterList();
+        }
+        // Custom Name Filter Component
+        let selectedNameFilters = [];
+        function setupNameFilter(){
+            document.addEventListener('click', (e)=>{
+                const panel = document.getElementById('name-filter-panel');
+                const toggle = document.getElementById('name-filter-toggle');
+                if(!panel || !toggle) return;
+                if(panel.classList.contains('hidden')) return;
+                if(!panel.contains(e.target) && !toggle.contains(e.target)) {
+                    panel.classList.add('hidden');
+                }
+            });
+            const toggleBtn = document.getElementById('name-filter-toggle');
+            const closeBtn = document.getElementById('names-close');
+            const clearBtn = document.getElementById('names-clear');
+            const searchInput = document.getElementById('name-filter-search');
+            if(toggleBtn) toggleBtn.addEventListener('click', ()=>{
+                document.getElementById('name-filter-panel').classList.toggle('hidden');
+                if(!document.getElementById('name-filter-panel').classList.contains('hidden')){
+                    searchInput.focus();
+                }
+            });
+            if(closeBtn) closeBtn.addEventListener('click', ()=> document.getElementById('name-filter-panel').classList.add('hidden'));
+            if(clearBtn) clearBtn.addEventListener('click', ()=> { selectedNameFilters = []; refreshNameFilterList(); render(); });
+            if(searchInput) searchInput.addEventListener('input', ()=> refreshNameFilterList());
+            refreshNameFilterList();
+        }
+        function refreshNameFilterList(){
+            const listEl = document.getElementById('name-filter-list');
+            const chipsEl = document.getElementById('name-chips');
+            const labelEl = document.getElementById('name-filter-label');
+            const search = (document.getElementById('name-filter-search')?.value || '').toLowerCase();
+            if(!listEl) return;
+            const names = Array.from(new Set(transactions.map(t=> t.name))).sort((a,b)=> a.localeCompare(b));
+            const filtered = names.filter(n => n.toLowerCase().includes(search));
+            listEl.innerHTML = filtered.map(n=> {
+                const val = n.toLowerCase();
+                const checked = selectedNameFilters.includes(val);
+                return `<div class="name-filter-item ${checked?'bg-indigo-50':''}" data-val="${val}">
+                    <input type="checkbox" class="accent-indigo-600 cursor-pointer" ${checked?'checked':''} />
+                    <span class="truncate">${n}</span>
+                </div>`;
+            }).join(filtered.length?'' : '<div class="text-[11px] text-gray-400 px-1 py-2">No matches</div>');
+            listEl.querySelectorAll('.name-filter-item').forEach(item => {
+                item.addEventListener('click', (e)=>{
+                    const cb = item.querySelector('input');
+                    if(e.target !== cb) cb.checked = !cb.checked;
+                    const val = item.getAttribute('data-val');
+                    if(cb.checked){
+                        if(!selectedNameFilters.includes(val)) selectedNameFilters.push(val);
+                    } else {
+                        selectedNameFilters = selectedNameFilters.filter(v=> v!==val);
+                    }
+                    refreshNameFilterList();
+                    render();
+                });
+            });
+            // Chips
+            if(selectedNameFilters.length){
+                chipsEl.classList.remove('hidden');
+                chipsEl.innerHTML = selectedNameFilters.slice(0,6).map(v=> {
+                    const display = names.find(n=> n.toLowerCase()===v) || v;
+                    return `<span class="chip">${display}<button data-remove="${v}" class="text-indigo-700 hover:text-indigo-900">×</button></span>`;
+                }).join('') + (selectedNameFilters.length>6 ? `<span class="chip bg-gray-100 text-gray-600">+${selectedNameFilters.length-6}</span>`:'');
+                chipsEl.querySelectorAll('button[data-remove]').forEach(btn => btn.addEventListener('click', (e)=>{
+                    const val = btn.getAttribute('data-remove');
+                    selectedNameFilters = selectedNameFilters.filter(v=> v!==val);
+                    refreshNameFilterList();
+                    render();
+                }));
+            } else {
+                chipsEl.classList.add('hidden');
+                chipsEl.innerHTML = '';
+            }
+            // Label
+            if(!selectedNameFilters.length) labelEl.textContent = 'All Names';
+            else if(selectedNameFilters.length === 1) labelEl.textContent = names.find(n=> n.toLowerCase()===selectedNameFilters[0]) || '1 selected';
+            else labelEl.textContent = selectedNameFilters.length + ' selected';
         }
     </script>
 </body>
