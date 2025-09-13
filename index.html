@@ -613,13 +613,24 @@
             btn.setAttribute('aria-expanded', String(!hidden));
         }
 
+        function toNumber(v){
+            if(typeof v === 'number' && !isNaN(v)) return v;
+            if(typeof v === 'string'){
+                // Remove commas and currency symbols/spaces
+                const cleaned = v.replace(/[^0-9+\-\.]/g,'');
+                const num = parseFloat(cleaned);
+                return isNaN(num)? 0 : num;
+            }
+            return 0;
+        }
         function formatCurrency(amount) {
-            return new Intl.NumberFormat('en-IN', { style: 'currency', currency: 'INR', minimumFractionDigits: 0 }).format(amount);
+            const n = toNumber(amount);
+            return new Intl.NumberFormat('en-IN', { style: 'currency', currency: 'INR', minimumFractionDigits: 0 }).format(n);
         }
 
         function updateKeyMetrics() {
-            const totalIncome = transactions.filter(t => t.type === 'income').reduce((sum, t) => sum + t.amount, 0);
-            const totalExpenditure = transactions.filter(t => t.type === 'expenditure').reduce((sum, t) => sum + t.amount, 0);
+            const totalIncome = transactions.filter(t => t.type === 'income').reduce((sum, t) => sum + toNumber(t.amount), 0);
+            const totalExpenditure = transactions.filter(t => t.type === 'expenditure').reduce((sum, t) => sum + toNumber(t.amount), 0);
             const netBalance = totalIncome - totalExpenditure;
 
             document.getElementById('total-income').textContent = formatCurrency(totalIncome);
@@ -677,7 +688,7 @@
 
             const totalEl = document.getElementById('filtered-total');
             if(totalEl){
-                const sum = filteredTransactions.reduce((s,t)=> s + t.amount, 0);
+                const sum = filteredTransactions.reduce((s,t)=> s + toNumber(t.amount), 0);
                 totalEl.querySelector('span').textContent = 'Total: ' + formatCurrency(sum);
             }
         // Pagination setup
