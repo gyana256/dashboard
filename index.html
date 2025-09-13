@@ -345,8 +345,12 @@
                         <button id="page-next" class="px-3 py-1 rounded border border-gray-300 bg-white disabled:opacity-40 disabled:cursor-not-allowed">Next</button>
                     </div>
                 </div>
-                <div class="mt-8 text-center">
+                <div class="mt-8 flex flex-col sm:flex-row gap-4 justify-center items-center">
                     <button id="download-button" class="bg-green-600 text-white font-bold py-2 px-6 rounded-lg hover:bg-green-700 transition duration-300 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-green-500">Download Excel</button>
+                    <div>
+                        <input type="file" id="excel-input" accept=".xlsx,.xls" class="hidden" />
+                        <button id="import-excel-button" class="bg-indigo-600 text-white font-bold py-2 px-6 rounded-lg hover:bg-indigo-700 transition duration-300 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500">Import Excel</button>
+                    </div>
                 </div>
             </section>
         </main>
@@ -406,6 +410,12 @@
             const toggleBtn = document.getElementById('toggle-filters');
             if(toggleBtn) toggleBtn.addEventListener('click', toggleFilters);
             document.getElementById('download-button').addEventListener('click', downloadExcel);
+            const importBtn = document.getElementById('import-excel-button');
+            const fileInput = document.getElementById('excel-input');
+            if(importBtn && fileInput){
+                importBtn.addEventListener('click', ()=> fileInput.click());
+                fileInput.addEventListener('change', handleExcelImport);
+            }
             const saveBtn = document.getElementById('save-button');
             if (saveBtn) saveBtn.addEventListener('click', persistTransactions);
             const today = new Date().toISOString().split('T')[0];
@@ -470,6 +480,67 @@
             const wb = XLSX.utils.book_new();
             XLSX.utils.book_append_sheet(wb, ws, 'Financial Data');
             XLSX.writeFile(wb, 'financial-data.xlsx');
+        }
+        // Excel Import Logic
+        function excelSerialToISO(n){
+            // Excel serial -> JS Date (assuming 1900 system)
+            const epoch = new Date(Date.UTC(1899,11,30));
+            const d = new Date(epoch.getTime() + n*86400000);
+            if(isNaN(d)) return '';
+            return d.toISOString().split('T')[0];
+        }
+        function normalizeDate(val){
+            if(!val) return '';
+            if(typeof val === 'number') return excelSerialToISO(val);
+            if(val instanceof Date) return val.toISOString().split('T')[0];
+            // Try parse textual dates
+            const parts = val.toString().trim();
+            if(!parts) return '';
+            // Already yyyy-mm-dd
+            if(/^[0-9]{4}-[0-9]{2}-[0-9]{2}$/.test(parts)) return parts;
+            const d = new Date(parts);
+            if(!isNaN(d)) return d.toISOString().split('T')[0];
+            return '';
+        }
+        function handleExcelImport(e){
+            const file = e.target.files && e.target.files[0];
+            if(!file){ return; }
+            if(typeof XLSX === 'undefined'){ console.error('XLSX lib missing'); return; }
+            const reader = new FileReader();
+            reader.onload = (evt)=> {
+                try {
+                    const data = new Uint8Array(evt.target.result);
+                    const wb = XLSX.read(data, { type:'array' });
+                    const sheetName = wb.SheetNames[0];
+                    const ws = wb.Sheets[sheetName];
+                    const aoa = XLSX.utils.sheet_to_json(ws, { header:1, raw:true, defval:'' });
+                    if(aoa.length < 3){ console.warn('Sheet too short'); return; }
+                    // Assume pattern created by exporter: first two header rows then data
+                    const newTx = [];
+                    for(let i=2;i<aoa.length;i++){
+                        const row = aoa[i]; if(!row || !row.length) continue;
+                        // expenditure cols 0,1,2; income 6,7,8
+                        const expName = (row[0]||'').toString().trim();
+                        const expDate = normalizeDate(row[1]);
+                        const expAmt = parseFloat(row[2]);
+                        if(expName && expDate && !isNaN(expAmt)) newTx.push({ type:'expenditure', name:expName, date:expDate, amount:expAmt });
+                        const incName = (row[6]||'').toString().trim();
+                        const incDate = normalizeDate(row[7]);
+                        const incAmt = parseFloat(row[8]);
+                        if(incName && incDate && !isNaN(incAmt)) newTx.push({ type:'income', name:incName, date:incDate, amount:incAmt });
+                    }
+                    if(!newTx.length){ console.warn('No transactions parsed from Excel'); return; }
+                    confirmModal('Import Excel', `Replace current ${transactions.length} transactions with ${newTx.length} imported?`, 'Import', 'bg-indigo-600 hover:bg-indigo-700', ()=> {
+                        transactions = newTx.map((t,i)=> ({ id:i+1, ...t }));
+                        nextId = transactions.length + 1;
+                        render();
+                        saveLocalBackup();
+                        passwordModal('save imported data', (pwd)=> { persistTransactions(pwd); });
+                    });
+                } catch(err){ console.error('Excel import failed', err); }
+                e.target.value=''; // reset input
+            };
+            reader.readAsArrayBuffer(file);
         }
 
         function handleFormSubmit(e) {
