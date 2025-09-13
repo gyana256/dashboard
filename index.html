@@ -354,6 +354,7 @@
         // Load CSV data from file instead of hardcoded string
     let transactions = [];
     let currentPage = 1; const PAGE_SIZE = 15;
+    const LS_KEY = 'financial-transactions-backup-v1';
         // THEME HANDLING (simplified to dark/light only)
         (function(){
             const stored = localStorage.getItem('theme-preference-v2');
@@ -414,8 +415,24 @@
         document.addEventListener('DOMContentLoaded', () => {
             fetch('/api/transactions?ts=' + Date.now())
                 .then(r => r.ok ? r.json() : Promise.reject(r.status))
-                .then(data => { transactions = data.transactions || []; reassignIds(); initializeEvents(); render(); })
-                .catch(err => { console.error('Load failed', err); initializeEvents(); render(); });
+                .then(data => { 
+                    transactions = data.transactions || []; 
+                    // If server empty, try restore from local backup
+                    if(!transactions.length){
+                        try { const cached = localStorage.getItem(LS_KEY); if(cached){ const parsed = JSON.parse(cached); if(Array.isArray(parsed) && parsed.length){ transactions = parsed; } } } catch(e){}
+                    }
+                    reassignIds(); 
+                    saveLocalBackup();
+                    initializeEvents(); 
+                    render(); 
+                })
+                .catch(err => { 
+                    console.error('Load failed', err); 
+                    // Fallback to local backup
+                    try { const cached = localStorage.getItem(LS_KEY); if(cached){ const parsed = JSON.parse(cached); if(Array.isArray(parsed)){ transactions = parsed; reassignIds(); } } } catch(e){}
+                    initializeEvents(); 
+                    render(); 
+                });
         });
 
         // Function to parse the specific CSV format
@@ -423,6 +440,9 @@
         function reassignIds(){
             nextId = 1;
             transactions = transactions.map(t => ({ ...t, id: nextId++ }));
+        }
+        function saveLocalBackup(){
+            try { localStorage.setItem(LS_KEY, JSON.stringify(transactions)); } catch(e){}
         }
 
         // Function to generate and download the CSV file
@@ -490,6 +510,7 @@
             document.getElementById('submit-button').textContent = 'Add Transaction';
 
             render();
+            saveLocalBackup();
             schedulePersist();
         }
         // Auto-persist with debounce
@@ -498,7 +519,7 @@
             clearTimeout(persistTimer);
             persistTimer = setTimeout(persistTransactions, 600);
         }
-        function persistTransactions(pwd){
+      function persistTransactions(pwd){
             const password = pwd;
             if(!password) return; // should be supplied from modal
             fetch('/api/transactions', {
@@ -506,7 +527,7 @@
                 headers: { 'Content-Type': 'application/json', 'X-Admin-Password': password },
                 body: JSON.stringify({ transactions: transactions.map(({id, ...rest}) => rest) })
             }).then(r => { if(!r.ok) throw new Error('Save failed'); return r.json(); })
-              .then(()=> fetch('/api/transactions').then(r=>r.json()).then(data=> { transactions = data.transactions || []; reassignIds(); render(); }))
+          .then(()=> fetch('/api/transactions').then(r=>r.json()).then(data=> { transactions = data.transactions || []; reassignIds(); saveLocalBackup(); render(); }))
               .catch(err => console.error('Persist error:', err));
         }
 
@@ -729,6 +750,7 @@
                     transactions.splice(idx,1);
                     reassignIds();
                     render();
+                    saveLocalBackup();
                     persistTransactions(pwd);
                 });
             });
