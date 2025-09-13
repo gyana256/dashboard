@@ -76,6 +76,37 @@ async function initDb() {
       date DATE NOT NULL,
       amount NUMERIC NOT NULL
     )`);
+    // Optional one-time migration from existing SQLite data file
+    if(process.env.PG_MIGRATE_FROM_SQLITE === '1'){
+      const possibleSqlite = process.env.DB_PATH ? path.resolve(process.env.DB_PATH) : path.join(__dirname, 'data.db');
+      try {
+        if(fs.existsSync(possibleSqlite)){
+          const tmpDb = new sqlite3.Database(possibleSqlite);
+          const getAll = (sql, params=[]) => new Promise((res,rej)=> tmpDb.all(sql, params,(e,r)=> e?rej(e):res(r)));
+          const rows = await getAll('SELECT * FROM transactions');
+          const pgCount = await pool.query('SELECT COUNT(*) FROM transactions');
+            if(parseInt(pgCount.rows[0].count,10) === 0 && rows.length){
+              console.log(`[Migration] Importing ${rows.length} rows from SQLite -> Postgres`);
+              await pool.query('BEGIN');
+              try {
+                for(const r of rows){
+                  await pool.query('INSERT INTO transactions (type,name,date,amount) VALUES ($1,$2,$3,$4)', [r.type, r.name, r.date, r.amount]);
+                }
+                await pool.query('COMMIT');
+                console.log('[Migration] Completed successfully.');
+              } catch(mErr){
+                await pool.query('ROLLBACK');
+                console.error('[Migration] Failed, rolled back:', mErr.message);
+              }
+            } else {
+              console.log('[Migration] Skipped (Postgres not empty or no rows in SQLite).');
+            }
+          tmpDb.close();
+        } else {
+          console.log('[Migration] No SQLite file found to migrate.');
+        }
+      } catch(e){ console.warn('[Migration] Error during migration attempt:', e.message); }
+    }
   } else {
     await execAsync(`CREATE TABLE IF NOT EXISTS transactions (
       id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -238,6 +269,9 @@ initDb()
       doBackup();
       setInterval(doBackup, 6 * 60 * 60 * 1000);
       console.log('[SQLite] Periodic backups enabled.');
+    }
+    if(!usePg && process.env.NODE_ENV === 'production'){
+      console.warn('[WARNING] Running with SQLite in production; on ephemeral hosts data WILL reset. Set DATABASE_URL for Postgres.');
     }
   })
   .then(() => {
