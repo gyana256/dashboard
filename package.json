@@ -11,11 +11,12 @@
   "scripts": {
     "start": "node server.js",
     "build": "echo 'no build step'",
-  "render-build": "(grep -q 'int.repositories' package-lock.json 2>/dev/null && echo 'Removing corporate lockfile' && rm package-lock.json || true); npm install --omit=dev --registry=https://registry.npmjs.org/"
+    "render-build": "(grep -q 'int.repositories' package-lock.json 2>/dev/null && echo 'Removing corporate lockfile' && rm package-lock.json || true); npm install --omit=dev --registry=https://registry.npmjs.org/"
   },
   "dependencies": {
-    "express": "^4.19.2",
     "cors": "^2.8.5",
+    "express": "^4.19.2",
+    "pg": "^8.11.5",
     "sqlite3": "^5.1.7"
   }
 }
