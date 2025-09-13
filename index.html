@@ -6,6 +6,8 @@
     <title>Interactive Financial Report - September 2025</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <!-- SheetJS for Excel export -->
+    <script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
     <style>
         body {
             font-family: 'Inter', sans-serif;
@@ -344,7 +346,7 @@
                     </div>
                 </div>
                 <div class="mt-8 text-center">
-                    <button id="download-button" class="bg-green-600 text-white font-bold py-2 px-6 rounded-lg hover:bg-green-700 transition duration-300 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-green-500">Download Updated Data</button>
+                    <button id="download-button" class="bg-green-600 text-white font-bold py-2 px-6 rounded-lg hover:bg-green-700 transition duration-300 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-green-500">Download Excel</button>
                 </div>
             </section>
         </main>
@@ -403,7 +405,7 @@
             setupNameFilter();
             const toggleBtn = document.getElementById('toggle-filters');
             if(toggleBtn) toggleBtn.addEventListener('click', toggleFilters);
-            document.getElementById('download-button').addEventListener('click', downloadCsv);
+            document.getElementById('download-button').addEventListener('click', downloadExcel);
             const saveBtn = document.getElementById('save-button');
             if (saveBtn) saveBtn.addEventListener('click', persistTransactions);
             const today = new Date().toISOString().split('T')[0];
@@ -446,33 +448,28 @@
         }
 
         // Function to generate and download the CSV file
-        function downloadCsv() {
-            let csvContent = "Expenditure,,,,,,,Income,,,,,,,\n";
-            csvContent += "Name,Date,Amount,Quantity,,Name,Date,Amount,,,,,,\n";
-
-            const expenditures = transactions.filter(t => t.type === 'expenditure');
-            const incomes = transactions.filter(t => t.type === 'income');
-            const maxLength = Math.max(expenditures.length, incomes.length);
-
-            for (let i = 0; i < maxLength; i++) {
-                const exp = expenditures[i] || {};
-                const inc = incomes[i] || {};
-                
-                const expRow = `${exp.name || ''},${exp.date || ''},${exp.amount || ''},,,`;
-                const incRow = `${inc.name || ''},${inc.date || ''},${inc.amount || ''},,,,,`;
-
-                csvContent += `${expRow}${incRow}\n`;
+        function downloadExcel(){
+            if(typeof XLSX === 'undefined') { console.error('XLSX lib missing'); return; }
+            // Build two logical sheets or one composite? We'll match original dual layout in one sheet.
+            const expenditures = transactions.filter(t=> t.type==='expenditure');
+            const incomes = transactions.filter(t=> t.type==='income');
+            const maxLen = Math.max(expenditures.length, incomes.length);
+            const header1 = ["Expenditure","","","","","","","","Income"]; // visual separation
+            const header2 = ["Name","Date","Amount","Quantity","","","Name","Date","Amount"]; // keep spacing similar
+            const rows = [header1, header2];
+            for(let i=0;i<maxLen;i++){
+                const exp = expenditures[i] || {}; const inc = incomes[i] || {};
+                rows.push([
+                    exp.name||'', exp.date||'', exp.amount!=null?exp.amount:'', '', '', '',
+                    inc.name||'', inc.date||'', inc.amount!=null?inc.amount:''
+                ]);
             }
-
-            const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
-            const link = document.createElement("a");
-            const url = URL.createObjectURL(blob);
-            link.setAttribute("href", url);
-            link.setAttribute("download", "updated-financial-data.csv");
-            link.style.visibility = 'hidden';
-            document.body.appendChild(link);
-            link.click();
-            document.body.removeChild(link);
+            const ws = XLSX.utils.aoa_to_sheet(rows);
+            // Column widths
+            ws['!cols'] = [ {wch:18},{wch:12},{wch:12},{wch:9},{wch:3},{wch:3},{wch:18},{wch:12},{wch:12} ];
+            const wb = XLSX.utils.book_new();
+            XLSX.utils.book_append_sheet(wb, ws, 'Financial Data');
+            XLSX.writeFile(wb, 'financial-data.xlsx');
         }
 
         function handleFormSubmit(e) {
