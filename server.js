@@ -36,144 +36,31 @@ async function initDb() {
     date TEXT NOT NULL,
     amount REAL NOT NULL
   );`);
-  await execAsync(`CREATE TABLE IF NOT EXISTS settings (
-    key TEXT PRIMARY KEY,
-    value TEXT
-  );`);
 }
 
-async function importCsvIfEmpty() {
-  // Check if table already has data
-  const existing = await allAsync('SELECT COUNT(*) as count FROM transactions');
-  if (existing[0].count > 0) {
-    console.log('Transactions already present, skipping CSV import.');
-    return;
-  }
-  const csvPath = path.join(__dirname, 'updated-financial-data.csv');
-  if (!fs.existsSync(csvPath)) {
-    console.log('CSV file not found, skipping import.');
-    return;
-  }
-  const raw = fs.readFileSync(csvPath, 'utf8').trim();
-  const lines = raw.split(/\r?\n/);
-  if (lines.length <= 2) {
-    console.log('CSV has no data rows.');
-    return;
-  }
-  // Skip first two header lines
-  const dataLines = lines.slice(2);
-  let inserted = 0;
-  await execAsync('BEGIN');
-  try {
-    for (const line of dataLines) {
-      if (!line.trim()) continue;
-      const cols = line.split(',');
-      // Expenditure side
-      const expName = (cols[0] || '').trim();
-      const expDate = (cols[1] || '').trim();
-      const expAmountRaw = (cols[2] || '').trim();
-      const expAmount = parseFloat(expAmountRaw);
-      if (expName && expDate && !isNaN(expAmount)) {
-        await runAsync('INSERT INTO transactions (type, name, date, amount) VALUES (?,?,?,?)', ['expenditure', expName, expDate, expAmount]);
-        inserted++;
-      }
-      // Income side (starts after a blank column per provided structure)
-      const incName = (cols[5] || '').trim();
-      const incDate = (cols[6] || '').trim();
-      const incAmountRaw = (cols[7] || '').trim();
-      const incAmount = parseFloat(incAmountRaw);
-      if (incName && incDate && !isNaN(incAmount)) {
-        await runAsync('INSERT INTO transactions (type, name, date, amount) VALUES (?,?,?,?)', ['income', incName, incDate, incAmount]);
-        inserted++;
-      }
-    }
-    await execAsync('COMMIT');
-    console.log(`Imported ${inserted} transactions from CSV.`);
-  } catch (e) {
-    await execAsync('ROLLBACK').catch(()=>{});
-    console.error('CSV import failed:', e.message);
-  }
-}
-
-async function hasCsvImportRun(){
-  const rows = await allAsync('SELECT value FROM settings WHERE key = ?',[ 'csv_import_done' ]);
-  return rows.length > 0;
-}
-
-async function markCsvImportRun(){
-  await runAsync('INSERT OR REPLACE INTO settings (key,value) VALUES (?,?)',[ 'csv_import_done', new Date().toISOString() ]);
-}
-
-async function oneTimeCsvImport(force = false){
-  if(!force && await hasCsvImportRun()) {
-    return { skipped: true, reason: 'CSV import already completed previously.' };
-  }
-  const csvPath = path.join(__dirname, 'updated-financial-data.csv');
-  if (!fs.existsSync(csvPath)) return { skipped: true, reason: 'CSV file not found.' };
-  const raw = fs.readFileSync(csvPath,'utf8').trim();
-  const lines = raw.split(/\r?\n/);
-  if(lines.length <= 2) return { skipped: true, reason: 'CSV has no data rows.' };
-  const dataLines = lines.slice(2);
-  let inserted = 0;
-  await execAsync('BEGIN');
-  try {
-    // delete all data first as per request
-    await execAsync('DELETE FROM transactions');
-    for(const line of dataLines){
-      if(!line.trim()) continue;
-      const cols = line.split(',');
-      const expName = (cols[0]||'').trim();
-      const expDate = (cols[1]||'').trim();
-      const expAmountRaw = (cols[2]||'').trim();
-      const expAmount = parseFloat(expAmountRaw);
-      if(expName && expDate && !isNaN(expAmount)) {
-        await runAsync('INSERT INTO transactions (type,name,date,amount) VALUES (?,?,?,?)',[ 'expenditure', expName, expDate, expAmount ]);
-        inserted++;
-      }
-      const incName = (cols[5]||'').trim();
-      const incDate = (cols[6]||'').trim();
-      const incAmountRaw = (cols[7]||'').trim();
-      const incAmount = parseFloat(incAmountRaw);
-      if(incName && incDate && !isNaN(incAmount)) {
-        await runAsync('INSERT INTO transactions (type,name,date,amount) VALUES (?,?,?,?)',[ 'income', incName, incDate, incAmount ]);
-        inserted++;
-      }
-    }
-    await markCsvImportRun();
-    await execAsync('COMMIT');
-    return { inserted, skipped:false };
-  } catch(e){
-    await execAsync('ROLLBACK').catch(()=>{});
-    return { skipped:true, reason: 'Import failed: '+e.message };
-  }
-}
-
-// Regenerate the original dual-column CSV file to keep it in sync after any modification
+// Regenerate combined dual-column CSV after data changes
 async function regenerateDualCsv(){
   try {
     const rows = await allAsync('SELECT * FROM transactions ORDER BY id ASC');
-    const expenditures = rows.filter(r => r.type === 'expenditure');
-    const incomes = rows.filter(r => r.type === 'income');
+    const expenditures = rows.filter(r=> r.type==='expenditure');
+    const incomes = rows.filter(r=> r.type==='income');
     const max = Math.max(expenditures.length, incomes.length);
     let csv = 'Expenditure,,,,,,,Income,,,,,,,\n';
     csv += 'Name,Date,Amount,Quantity,,Name,Date,Amount,,,,,,,\n';
     for(let i=0;i<max;i++){
-      const exp = expenditures[i] || {}; // keep ordering they were inserted
+      const exp = expenditures[i] || {};
       const inc = incomes[i] || {};
-      const expRow = `${exp.name || ''},${exp.date || ''},${exp.amount != null ? exp.amount : ''},,,`;
-      const incRow = `${inc.name || ''},${inc.date || ''},${inc.amount != null ? inc.amount : ''},,,,,`;
+      const expRow = `${exp.name||''},${exp.date||''},${exp.amount!=null?exp.amount:''},,,`;
+      const incRow = `${inc.name||''},${inc.date||''},${inc.amount!=null?inc.amount:''},,,,,`;
       csv += expRow + incRow + '\n';
     }
-    const outPath = path.join(__dirname, 'updated-financial-data.csv');
-    fs.writeFileSync(outPath, csv, 'utf8');
-    // Optional log (can be noisy if frequent):
-    // console.log('CSV regenerated with', rows.length, 'rows');
+    fs.writeFileSync(path.join(__dirname,'updated-financial-data.csv'), csv, 'utf8');
   } catch(e){
-    console.warn('Failed to regenerate CSV:', e.message);
+    console.warn('CSV regeneration failed:', e.message);
   }
 }
 
-// One-time import endpoint
+// (Legacy CSV import functionality removed)
 // Simple password middleware (shared secret) for mutating operations
 const ADMIN_PASSWORD = process.env.ADMIN_PASSWORD || '8763951777';
 function requirePassword(req,res,next){
@@ -182,17 +69,7 @@ function requirePassword(req,res,next){
   return res.status(401).json({ error: 'Unauthorized' });
 }
 
-app.post('/api/import-csv-once', requirePassword, async (req,res) => {
-  try {
-    const result = await oneTimeCsvImport(false);
-    if(result.skipped && result.reason && result.reason.includes('already')) {
-      return res.status(409).json(result);
-    }
-    res.json(result);
-  } catch(e){
-    res.status(500).json({ error: 'Unexpected error during import' });
-  }
-});
+// Removed /api/import-csv-once endpoint
 
 app.use(cors());
 app.use(express.json());
@@ -243,7 +120,6 @@ app.get('/api/transactions.csv', async (req, res) => {
 
 const port = process.env.PORT || 3000;
 initDb()
-  .then(importCsvIfEmpty)
   .then(() => {
     app.listen(port, () => console.log(`Server with SQLite running on http://localhost:${port}`));
   })
