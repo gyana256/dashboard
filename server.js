@@ -8,8 +8,16 @@ import { fileURLToPath } from 'url';
 const app = express();
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 sqlite3.verbose();
-const dbFile = path.join(__dirname, 'data.db');
-const db = new sqlite3.Database(dbFile);
+// Allow configurable persistent DB path (use env DB_PATH or default inside project root)
+const dbFile = process.env.DB_PATH ? path.resolve(process.env.DB_PATH) : path.join(__dirname, 'data.db');
+// Ensure directory exists if a nested custom path is provided
+try { fs.mkdirSync(path.dirname(dbFile), { recursive: true }); } catch(e) {}
+const db = new sqlite3.Database(dbFile, (err)=> {
+  if(err) console.error('Failed to open SQLite DB:', err.message);
+  else console.log('[SQLite] Using database file:', dbFile);
+});
+// Set WAL mode for better durability & crash resilience
+db.exec("PRAGMA journal_mode=WAL; PRAGMA synchronous=NORMAL; PRAGMA foreign_keys=ON;", (e)=>{ if(e) console.warn('PRAGMA set failed', e.message); });
 
 // Promisified helpers
 const runAsync = (sql, params=[]) => new Promise((resolve, reject) => {
@@ -140,6 +148,31 @@ async function oneTimeCsvImport(force = false){
   }
 }
 
+// Regenerate the original dual-column CSV file to keep it in sync after any modification
+async function regenerateDualCsv(){
+  try {
+    const rows = await allAsync('SELECT * FROM transactions ORDER BY id ASC');
+    const expenditures = rows.filter(r => r.type === 'expenditure');
+    const incomes = rows.filter(r => r.type === 'income');
+    const max = Math.max(expenditures.length, incomes.length);
+    let csv = 'Expenditure,,,,,,,Income,,,,,,,\n';
+    csv += 'Name,Date,Amount,Quantity,,Name,Date,Amount,,,,,,,\n';
+    for(let i=0;i<max;i++){
+      const exp = expenditures[i] || {}; // keep ordering they were inserted
+      const inc = incomes[i] || {};
+      const expRow = `${exp.name || ''},${exp.date || ''},${exp.amount != null ? exp.amount : ''},,,`;
+      const incRow = `${inc.name || ''},${inc.date || ''},${inc.amount != null ? inc.amount : ''},,,,,`;
+      csv += expRow + incRow + '\n';
+    }
+    const outPath = path.join(__dirname, 'updated-financial-data.csv');
+    fs.writeFileSync(outPath, csv, 'utf8');
+    // Optional log (can be noisy if frequent):
+    // console.log('CSV regenerated with', rows.length, 'rows');
+  } catch(e){
+    console.warn('Failed to regenerate CSV:', e.message);
+  }
+}
+
 // One-time import endpoint
 // Simple password middleware (shared secret) for mutating operations
 const ADMIN_PASSWORD = process.env.ADMIN_PASSWORD || '8763951777';
@@ -187,7 +220,9 @@ app.post('/api/transactions', requirePassword, async (req, res) => {
       await runAsync('INSERT INTO transactions (type, name, date, amount) VALUES (?,?,?,?)', [t.type, t.name, t.date, t.amount]);
     }
     await execAsync('COMMIT');
-    res.json({ status: 'ok' });
+  // Fire and forget CSV regeneration (don't block response on potential fs latency)
+  regenerateDualCsv();
+  res.json({ status: 'ok' });
   } catch (e) {
     await execAsync('ROLLBACK').catch(()=>{});
     res.status(500).json({ error: 'Failed to save transactions' });
