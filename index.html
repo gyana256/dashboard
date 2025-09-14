@@ -168,7 +168,6 @@
     body.no-blur .bg-white,
     body.no-blur .stat-pill,
     body.no-blur .chart-container { backdrop-filter:none!important; -webkit-backdrop-filter:none!important; }
-    /* ...existing code... */
     </style>
 </head>
 <body class="theme-dark min-h-screen">
@@ -360,6 +359,7 @@
         // Load CSV data from file instead of hardcoded string
     let transactions = [];
     let currentPage = 1; const PAGE_SIZE = 15;
+    let nextSuccessMessage = null;
         // THEME HANDLING (simplified to dark/light only)
         (function(){
             const stored = localStorage.getItem('theme-preference-v2');
@@ -523,7 +523,8 @@
                         transactions = newTx.map((t,i)=> ({ id:i+1, ...t }));
                         nextId = transactions.length + 1;
                         render();
-                        passwordModal('save imported data', (pwd)=> { persistTransactions(pwd); });
+                        nextSuccessMessage = 'Excel import saved';
+                        persistTransactions();
                     });
                 } catch(err){ console.error('Excel import failed', err); }
                 e.target.value=''; // reset input
@@ -553,9 +554,11 @@
                 const transactionIndex = transactions.findIndex(t => t.id == id);
                 if (transactionIndex > -1) {
                     transactions[transactionIndex] = { id: parseInt(id), type, name, date, amount };
+                    nextSuccessMessage = 'Transaction updated';
                 }
             } else {
                 transactions.push({ id: nextId++, type, name, date, amount });
+                nextSuccessMessage = 'Transaction added';
             }
             
             nameInput.value = '';
@@ -570,21 +573,44 @@
         }
         // Auto-persist with debounce
         let persistTimer;
-        function schedulePersist(){
+        function schedulePersist(msg){
             clearTimeout(persistTimer);
+            if(msg) nextSuccessMessage = msg;
             persistTimer = setTimeout(persistTransactions, 600);
         }
-      function persistTransactions(pwd){
-            const password = pwd;
-            if(!password) return; // should be supplied from modal
-            fetch('/api/transactions', {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json', 'X-Admin-Password': password },
-                body: JSON.stringify({ transactions: transactions.map(({id, ...rest}) => rest) })
-            }).then(r => { if(!r.ok) throw new Error('Save failed'); return r.json(); })
-          .then(()=> fetch('/api/transactions').then(r=>r.json()).then(data=> { transactions = data.transactions || []; reassignIds(); render(); }))
-              .catch(err => console.error('Persist error:', err));
-        }
+            let lastAdminPassword = null;
+            function ensureToastContainer(){
+    let c = document.getElementById('toast-container');
+    if(!c){ c = document.createElement('div'); c.id='toast-container'; c.className='fixed top-4 right-4 z-50 flex flex-col gap-2'; document.body.appendChild(c); }
+    return c;
+}
+function showToast(msg, type='success', duration=2600){
+    const c = ensureToastContainer();
+    const el = document.createElement('div');
+    el.role='status';
+    el.className = `px-4 py-2 rounded-lg shadow text-sm font-medium border backdrop-blur-sm ${type==='error' ? 'bg-red-600/90 text-white border-red-500' : 'bg-green-600/90 text-white border-green-500'}`;
+    el.textContent = msg;
+    el.style.opacity='0'; el.style.transform='translateY(-4px)'; el.style.transition='opacity .25s, transform .25s';
+    c.appendChild(el);
+    requestAnimationFrame(()=> { el.style.opacity='1'; el.style.transform='translateY(0)'; });
+    setTimeout(()=> { el.style.opacity='0'; el.style.transform='translateY(-4px)'; setTimeout(()=> el.remove(), 320); }, duration);
+}
+function persistTransactions(pwd){
+    const password = pwd || lastAdminPassword;
+    if(!password){
+        passwordModal('save changes', (pw)=> persistTransactions(pw));
+        return;
+    }
+    fetch('/api/transactions', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', 'X-Admin-Password': password },
+        body: JSON.stringify({ transactions: transactions.map(({id, ...rest}) => rest) })
+    }).then(r => { if(!r.ok) throw new Error('Save failed'); return r.json(); })
+      .then(()=> { lastAdminPassword = password; return fetch('/api/transactions'); })
+      .then(r=> r.json())
+      .then(data=> { transactions = data.transactions || []; reassignIds(); render(); showToast(nextSuccessMessage || 'Saved'); nextSuccessMessage = null; })
+      .catch(err => { console.error('Persist error:', err); showToast('Save failed','error',4000); });
+}
 
         function handleEditTransaction(id) {
             const transaction = transactions.find(t => t.id === id);
@@ -593,7 +619,46 @@
             document.getElementById('transaction-id').value = transaction.id;
             document.getElementById('transaction-name').value = transaction.name;
             document.getElementById('transaction-type').value = transaction.type;
-            document.getElementById('transaction-date').value = transaction.date;
+            // Normalize date into YYYY-MM-DD for date input (handles variants or Date objects)
+            let raw = transaction.date;
+            let iso = '';
+            if(raw instanceof Date) {
+                iso = raw.toISOString().slice(0,10);
+            } else if (typeof raw === 'string') {
+                // If already YYYY-MM-DD
+                if(/^\d{4}-\d{2}-\d{2}$/.test(raw)) {
+                    iso = raw;
+                } else {
+                    // Try to parse common formats (DD/MM/YYYY, MM/DD/YYYY, YYYY/MM/DD)
+                    const cleaned = raw.trim();
+                    let dObj = null;
+                    if(/^\d{4}[\/\-]\d{1,2}[\/\-]\d{1,2}$/.test(cleaned)){
+                        dObj = new Date(cleaned.replace(/\//g,'-'));
+                    } else if(/^\d{1,2}[\/\-]\d{1,2}[\/\-]\d{4}$/.test(cleaned)){
+                        const parts = cleaned.split(/[\/\-]/); // assume D/M/Y
+                        const [p1,p2,p3] = parts.map(p=> p.padStart(2,'0'));
+                        // Determine if format is D/M/Y or M/D/Y by >12 heuristic
+                        let day = p1, month = p2, year = p3;
+                        if(parseInt(p1,10) > 12 && parseInt(p2,10) <= 12){
+                            day = p1; month = p2;
+                        } else if(parseInt(p2,10) > 12 && parseInt(p1,10) <= 12){
+                            // swap if second clearly day
+                            month = p1; day = p2;
+                        }
+                        dObj = new Date(`${year}-${month}-${day}`);
+                    } else if(/T\d{2}:\d{2}:\d{2}/.test(cleaned)) { // ISO datetime
+                        dObj = new Date(cleaned);
+                    }
+                    if(dObj && !isNaN(dObj)) {
+                        iso = dObj.toISOString().slice(0,10);
+                    }
+                }
+            }
+            if(!iso){
+                try { const d = new Date(raw); if(!isNaN(d)) iso = d.toISOString().slice(0,10); } catch(_){}
+            }
+            if(!iso) iso = '';
+            document.getElementById('transaction-date').value = iso;
             document.getElementById('transaction-amount').value = transaction.amount;
             document.getElementById('submit-button').textContent = 'Update Transaction';
             window.scrollTo({ top: 0, behavior: 'smooth' });
