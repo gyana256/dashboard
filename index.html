@@ -1,1040 +1,282 @@
-<!DOCTYPE html>
-<html lang="en">
-<head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Interactive Financial Report - September 2025</title>
-    <script src="https://cdn.tailwindcss.com"></script>
-    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
-    <!-- SheetJS for Excel export -->
-    <script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
-    <style>
-        body {
-            font-family: 'Inter', sans-serif;
-        }
-    html, body { overflow-x: hidden; }
-        @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap');
-        .chart-container {
-            position: relative;
-            width: 100%;
-            max-width: 800px;
-            margin-left: auto;
-            margin-right: auto;
-            height: 400px;
-            max-height: 50vh;
-        }
-        .edit-icon {
-            cursor: pointer;
-            transition: color 0.2s ease-in-out;
-        }
-        .edit-icon:hover {
-            color: #4F46E5;
-        }
-    /* Pills */
-    .stat-pill { display:inline-flex; align-items:center; gap:0.5rem; border-radius:9999px; padding:0.4rem 0.9rem; font-size:0.75rem; font-weight:600; line-height:1rem; box-shadow:0 1px 2px 0 rgba(0,0,0,0.06),0 1px 3px 0 rgba(0,0,0,0.1); backdrop-filter: blur(4px); }
-    .stat-pill svg { width:16px; height:16px; }
-    /* Name filter dropdown */
-    .name-filter-toggle { border:1px solid #d1d5db; border-radius:0.5rem; padding:0.5rem 0.75rem; font-size:0.875rem; background:#fff; display:inline-flex; align-items:center; gap:0.25rem; transition: border-color .15s ease; }
-    .name-filter-toggle:hover { border-color:#9ca3af; }
-    .name-filter-panel { position:absolute; z-index:40; top:100%; left:0; margin-top:0.4rem; width:260px; background:#ffffff; border:1px solid #e5e7eb; border-radius:0.75rem; box-shadow:0 10px 25px -5px rgba(0,0,0,0.1),0 8px 10px -6px rgba(0,0,0,0.1); padding:0.75rem 0.75rem 0.9rem; animation:fadeIn .18s ease-out; }
-    .name-filter-panel header { display:flex; align-items:center; gap:0.4rem; margin-bottom:0.5rem; }
-    .name-filter-search { width:100%; border:1px solid #d1d5db; border-radius:0.5rem; padding:0.4rem 0.6rem; font-size:0.75rem; }
-    .name-filter-list { max-height:150px; overflow-y:auto; margin-top:0.4rem; }
-    .name-filter-item { display:flex; align-items:center; gap:0.5rem; padding:0.35rem 0.4rem; border-radius:0.5rem; font-size:0.75rem; cursor:pointer; }
-    .name-filter-item:hover { background:#f1f5f9; }
-    .chip { background:#eef2ff; color:#4338ca; font-size:0.65rem; padding:0.15rem 0.45rem; border-radius:9999px; font-weight:600; display:inline-flex; align-items:center; gap:0.25rem; }
-    .chip button { line-height:0; }
-    @media (max-width:640px){ .name-filter-panel { width: 92vw; left:50%; transform:translateX(-50%); } }
-    /* Simple animation used by modals */
-    @keyframes fadeIn { from { opacity:0; transform: translateY(6px);} to { opacity:1; transform:translateY(0);} }
-    .animate-fade-in { animation: fadeIn .25s ease-out; }
-    /* THEME SYSTEM: light + dark (default dark). Adjust variables only for palette tweaks. */
-    :root {
-        --color-accent: #2563eb;
-        --color-accent-rgb: 37,99,235;
-        --color-accent-soft: #dbeafe;
-        --color-danger: #dc2626;
-        --color-success: #16a34a;
-        --radius-panel: 1.25rem;
-    }
-    body.theme-dark {
-        --bg: #0f172a; /* slate-900 */
-        --bg-alt: #1e293b; /* slate-800 */
-        --bg-soft: #162132; /* custom */
-        --bg-panel: rgba(255,255,255,0.04);
-        --bg-panel-solid: #1e293b;
-        --border: rgba(255,255,255,0.10);
-        --border-strong: rgba(255,255,255,0.18);
-        --text: #f1f5f9; /* slate-100 */
-        --text-soft: #cbd5e1; /* slate-300 */
-        --text-faint: #64748b; /* slate-500 */
-        --chip-bg: rgba(var(--color-accent-rgb),0.15);
-        --chip-text: #e2e8f0;
-        --shadow: 0 4px 18px -4px rgba(0,0,0,0.55),0 2px 6px -2px rgba(0,0,0,0.35);
-        background: radial-gradient(circle at 25% 15%, #1e293b 0%, #0f172a 55%, #0a1220 100%);
-        color: var(--text);
-    }
-    body.theme-light {
-        --bg: #f1f5f9; /* slate-100 */
-        --bg-alt: #ffffff;
-        --bg-soft: #e2e8f0; /* slate-200 */
-        --bg-panel: #ffffff;
-        --bg-panel-solid: #ffffff;
-        --border: #e2e8f0;
-        --border-strong: #cbd5e1;
-        --text: #0f172a;
-        --text-soft: #334155;
-        --text-faint: #64748b;
-        --chip-bg: #dbeafe;
-        --chip-text: #1e3a8a;
-        --shadow: 0 2px 6px -1px rgba(0,0,0,0.15),0 1px 3px -1px rgba(0,0,0,0.08);
-        background: linear-gradient(140deg,#f8fafc,#eef2f7 60%,#e2e8f0);
-        color: var(--text);
-    }
-    /* Panel + card overrides */
-    .panel, body.theme-dark .bg-white, body.theme-light .bg-white {
-        background: var(--bg-panel);
-        border: 1px solid var(--border);
-        backdrop-filter: blur(10px);
-        -webkit-backdrop-filter: blur(10px);
-        border-radius: var(--radius-panel);
-        box-shadow: var(--shadow);
-        transition: background .35s, color .35s, border-color .35s;
-    }
-    body.theme-light .bg-white { background: var(--bg-panel); }
-    /* Text utilities override for theme consistency */
-    body.theme-dark .text-gray-900, body.theme-dark .text-gray-800 { color: var(--text); }
-    body.theme-dark .text-gray-700 { color: var(--text-soft); }
-    body.theme-dark .text-gray-600 { color: var(--text-faint); }
-    body.theme-dark .text-gray-500 { color: var(--text-faint); }
-    body.theme-light .text-gray-900 { color: var(--text); }
-    body.theme-light .text-gray-800 { color: var(--text-soft); }
-    /* Inputs */
-    body.theme-dark input, body.theme-dark select { background: var(--bg-soft); border-color: var(--border-strong)!important; color: var(--text); }
-    body.theme-dark input:focus, body.theme-dark select:focus { outline:none; box-shadow:0 0 0 2px rgba(var(--color-accent-rgb),0.45); border-color: var(--color-accent)!important; }
-    body.theme-light input, body.theme-light select { background: #ffffff; }
-    body.theme-light input:focus, body.theme-light select:focus { outline:none; box-shadow:0 0 0 2px rgba(var(--color-accent-rgb),0.35); border-color: var(--color-accent)!important; }
-    /* Buttons */
-    .btn-primary { background: linear-gradient(135deg,#2563eb,#1d4ed8); color:#fff; }
-    .btn-primary:hover { filter:brightness(1.08); }
-    .btn-accent-green { background: linear-gradient(135deg,#059669,#10b981); color:#fff; }
-    .btn-accent-green:hover { filter:brightness(1.1); }
-    /* Stat pill refine */
-    #filtered-total.stat-pill { background: var(--chip-bg); color: var(--chip-text); }
-    /* Name filter adjustments */
-    body.theme-dark .name-filter-toggle { background: var(--bg-soft); border:1px solid var(--border); color: var(--text); }
-    body.theme-light .name-filter-toggle { background: #ffffff; }
-    body.theme-dark .name-filter-panel { background: linear-gradient(145deg,#1e293b,#0f172a); border:1px solid var(--border-strong); }
-    body.theme-light .name-filter-panel { background: #ffffff; border:1px solid var(--border); }
-    body.theme-dark .name-filter-item:hover { background: rgba(var(--color-accent-rgb),0.18); }
-    body.theme-light .name-filter-item:hover { background: #f1f5f9; }
-    body.theme-dark .chip { background: var(--chip-bg); color: var(--chip-text); }
-    body.theme-light .chip { background: var(--chip-bg); color: var(--chip-text); }
-    /* Tables */
-    body.theme-dark table thead { background: rgba(255,255,255,0.05); }
-    body.theme-light table thead { background: #f1f5f9; }
-    body.theme-dark tbody tr:hover { background: rgba(255,255,255,0.05); }
-    body.theme-light tbody tr:hover { background: #f8fafc; }
-    /* Charts container */
-    .chart-container { transition: background .35s, border-color .35s; }
-    body.theme-dark .chart-container { background: radial-gradient(circle at 30% 40%,rgba(var(--color-accent-rgb),0.18),rgba(var(--color-accent-rgb),0.05) 60%,transparent); border:1px solid var(--border); border-radius:1rem; }
-    body.theme-light .chart-container { background: #ffffff; border:1px solid var(--border); border-radius:1rem; }
-    /* Headings */
-    h1.gradient-title { background: linear-gradient(90deg,#3b82f6,#0ea5e9,#6366f1); -webkit-background-clip:text; background-clip:text; color:transparent; }
-    /* Filter action buttons */
-    .filter-action-btn { font-weight:500; border:1px solid var(--border); background:var(--bg-soft); color:var(--text-soft); border-radius:0.65rem; line-height:1.1; }
-    .filter-action-btn:hover { color:var(--text); background:rgba(var(--color-accent-rgb),0.18); border-color:rgba(var(--color-accent-rgb),0.55); }
-    body.theme-light .filter-action-btn { background:#ffffff; color:var(--text-soft); }
-    body.theme-light .filter-action-btn:hover { background:var(--color-accent-soft); color:#1e3a8a; }
-    .filter-action-btn:focus { outline:none; box-shadow:0 0 0 2px rgba(var(--color-accent-rgb),0.4); }
-    /* Icon buttons (edit/delete) */
-    .icon-btn { width:2.25rem; height:2.25rem; display:inline-flex; align-items:center; justify-content:center; border:1px solid var(--border); border-radius:0.75rem; background:var(--bg-soft); color:var(--text-faint); transition:.25s; position:relative; }
-    .icon-btn:hover { color:var(--text); border-color:rgba(var(--color-accent-rgb),0.55); background:rgba(var(--color-accent-rgb),0.15); }
-    body.theme-light .icon-btn { background:#ffffff; }
-    body.theme-light .icon-btn:hover { background:var(--color-accent-soft); }
-    .icon-btn-danger { border-color:rgba(220,38,38,0.55); color:#dc2626; }
-    .icon-btn-danger:hover { background:rgba(220,38,38,0.15); border-color:#dc2626; color:#ef4444; }
-    .icon-btn svg { width:1.05rem; height:1.05rem; pointer-events:none; }
-    .sr-only { position:absolute; width:1px; height:1px; padding:0; margin:-1px; overflow:hidden; clip:rect(0,0,0,0); white-space:nowrap; border:0; }
-    @media (max-width:640px){ h1 { font-size:2rem; } .chart-container { height:320px; } }
-    /* Removed glass and ios-glass themes */
-    /* Mobile full-screen style for name filter */
-    .name-filter-panel.mobile-full { position:fixed; top:8%; left:50%; transform:translateX(-50%); width:92vw!important; max-height:70vh; overflow-y:auto; }
-    .name-filter-backdrop { position:fixed; inset:0; background:rgba(0,0,0,0.45); backdrop-filter:none; -webkit-backdrop-filter:none; z-index:30; }
-    /* Remove blur from name filter panel when opened (prevent background text blurriness perception) */
-    .name-filter-panel, body.theme-dark .name-filter-panel, body.theme-light .name-filter-panel { backdrop-filter:none!important; -webkit-backdrop-filter:none!important; }
-    /* No-blur mode (applied while name filter open) */
-    body.no-blur .panel,
-    body.no-blur .bg-white,
-    body.no-blur .stat-pill,
-    body.no-blur .chart-container { backdrop-filter:none!important; -webkit-backdrop-filter:none!important; }
-    </style>
-</head>
-<body class="theme-dark min-h-screen">
+import express from 'express';
+import path from 'path';
+import cors from 'cors';
+import sqlite3 from 'sqlite3';
+import fs from 'fs';
+import { fileURLToPath } from 'url';
+// Postgres optional (installed only if using managed DB)
+let pool = null; // will hold pg Pool when DATABASE_URL provided
+let usePg = !!process.env.DATABASE_URL;
+if(usePg){
+  try {
+    const pg = await import('pg');
+    const { Pool } = pg;
+    pool = new Pool({
+      connectionString: process.env.DATABASE_URL,
+      // Most free providers require SSL; allow disabling via PGSSL=0
+      ssl: process.env.PGSSL === '0' ? false : { rejectUnauthorized: false }
+    });
+    await pool.query('SELECT 1');
+    console.log('[Postgres] Connected.');
+  } catch(e){
+    console.error('[Postgres] Failed to initialize, falling back to SQLite:', e.message);
+    usePg = false;
+  }
+}
 
-    <div class="container mx-auto p-4 md:p-8">
-        <header class="mb-10 flex flex-col md:flex-row md:items-center md:justify-between gap-4">
-            <h1 class="gradient-title text-4xl font-bold drop-shadow">Financial Dashboard</h1>
-            <div class="flex items-center gap-3 self-center md:self-auto">
-                <button id="theme-toggle" class="px-4 py-2 text-sm rounded-lg border border-gray-300/60 bg-white/60 backdrop-blur hover:bg-white/80 transition-colors flex items-center gap-2 font-medium">
-                    <span id="theme-toggle-icon">🌙</span><span id="theme-toggle-label">Dark</span>
-                </button>
-            </div>
-        </header>
+const app = express();
+const __dirname = path.dirname(fileURLToPath(import.meta.url));
+let dbFile = null; let db = null;
+if(!usePg){
+  sqlite3.verbose();
+  dbFile = process.env.DB_PATH ? path.resolve(process.env.DB_PATH) : path.join(__dirname, 'data.db');
+  try { fs.mkdirSync(path.dirname(dbFile), { recursive: true }); } catch(e) {}
+  db = new sqlite3.Database(dbFile, (err)=> {
+    if(err) console.error('Failed to open SQLite DB:', err.message);
+    else console.log('[SQLite] Using database file:', dbFile);
+  });
+  db.exec("PRAGMA journal_mode=WAL; PRAGMA synchronous=NORMAL; PRAGMA foreign_keys=ON;", (e)=>{ if(e) console.warn('PRAGMA set failed', e.message); });
+}
 
-        <main>
-            <!-- Key Metrics Section -->
-            <section id="key-metrics" class="mb-10">
-                <div class="grid grid-cols-1 md:grid-cols-3 gap-4 md:gap-6">
-                    <div class="bg-white p-5 md:p-6 rounded-2xl shadow-md border border-gray-200">
-                        <h2 class="text-sm md:text-lg font-semibold text-gray-500 mb-1 md:mb-2">Total Income</h2>
-                        <p id="total-income" class="text-3xl md:text-4xl font-bold text-green-600">₹0</p>
-                    </div>
-                    <div class="bg-white p-5 md:p-6 rounded-2xl shadow-md border border-gray-200">
-                        <h2 class="text-sm md:text-lg font-semibold text-gray-500 mb-1 md:mb-2">Total Expenditure</h2>
-                        <p id="total-expenditure" class="text-3xl md:text-4xl font-bold text-red-600">₹0</p>
-                    </div>
-                    <div class="bg-white p-5 md:p-6 rounded-2xl shadow-md border border-gray-200">
-                        <h2 class="text-sm md:text-lg font-semibold text-gray-500 mb-1 md:mb-2">Net Balance</h2>
-                        <p id="net-balance" class="text-3xl md:text-4xl font-bold text-blue-600">₹0</p>
-                    </div>
-                </div>
-            </section>
+// Unified helpers (Postgres vs SQLite)
+async function runAsync(sql, params=[]) {
+  if(usePg){
+    // pg: use pool.query
+    return pool.query(sql, params);
+  }
+  return new Promise((resolve, reject) => {
+    db.run(sql, params, function(err){ if(err) reject(err); else resolve(this); });
+  });
+}
+async function allAsync(sql, params=[]) {
+  if(usePg){
+    const r = await pool.query(sql, params);
+    return r.rows;
+  }
+  return new Promise((resolve, reject) => {
+    db.all(sql, params, (err, rows)=> { if(err) reject(err); else resolve(rows); });
+  });
+}
+async function execAsync(sql){
+  if(usePg){
+    // For multi-statement exec, split by ; (simple cases). Prefer transactions explicitly.
+    const statements = sql.split(';').map(s=> s.trim()).filter(Boolean);
+    for(const st of statements){ await pool.query(st); }
+    return;
+  }
+  return new Promise((resolve, reject)=> db.exec(sql, err=> err? reject(err): resolve()));
+}
 
-            <!-- Data Entry Section -->
-            <section class="bg-white p-6 md:p-8 rounded-2xl shadow-md mb-10 border border-gray-200">
-                <h2 class="text-2xl font-bold mb-6">Add New Transaction</h2>
-                <form id="transaction-form" class="grid grid-cols-1 md:grid-cols-4 gap-6 items-end">
-                    <div>
-                        <label for="transaction-name" class="block text-sm font-medium text-gray-700 mb-1">Name</label>
-                        <input type="text" id="transaction-name" required class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500" placeholder="e.g., Salary, Groceries">
-                    </div>
-                    <div>
-                        <label for="transaction-type" class="block text-sm font-medium text-gray-700 mb-1">Type</label>
-                        <select id="transaction-type" required class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500">
-                            <option value="expenditure">Expenditure</option>
-                            <option value="income">Income</option>
-                        </select>
-                    </div>
-                    <div>
-                        <label for="transaction-date" class="block text-sm font-medium text-gray-700 mb-1">Date</label>
-                        <input type="date" id="transaction-date" required class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500">
-                    </div>
-                    <div>
-                        <label for="transaction-amount" class="block text-sm font-medium text-gray-700 mb-1">Amount (₹)</label>
-                        <input type="number" id="transaction-amount" required min="0" class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500" placeholder="e.g., 5000">
-                    </div>
-                    <input type="hidden" id="transaction-id">
-                    <div class="md:col-span-1">
-                         <button type="submit" id="submit-button" class="w-full bg-blue-600 text-white font-bold py-2 px-4 rounded-lg hover:bg-blue-700 transition duration-300 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500">Add Transaction</button>
-                    </div>
-                </form>
-            </section>
-
-            <!-- Income vs Expenditure Bar Chart -->
-            <section class="bg-white p-6 md:p-8 rounded-2xl shadow-md border border-gray-200 mb-10">
-                <h2 class="text-2xl font-bold mb-4">Income vs Expenditure</h2>
-                <p class="text-gray-600 mb-4">Bar comparison of total income, expenditure and net balance.</p>
-                <div class="chart-container h-72">
-                    <canvas id="totals-bar-chart"></canvas>
-                </div>
-            </section>
-            <!-- Averages & Projection Analytics -->
-            <section class="bg-white p-6 md:p-8 rounded-2xl shadow-md border border-gray-200 mb-10">
-                <h2 class="text-2xl font-bold mb-6">Averages & Projection</h2>
-                <div class="grid grid-cols-2 md:grid-cols-4 gap-4 mb-6" id="analytics-cards">
-                    <div class="bg-gradient-to-br from-indigo-50 to-indigo-100 rounded-xl p-4">
-                        <p class="text-xs font-medium text-indigo-600 uppercase tracking-wide">Avg Daily Income</p>
-                        <p id="avg-daily-income" class="mt-2 text-xl font-bold text-indigo-700">₹0</p>
-                    </div>
-                    <div class="bg-gradient-to-br from-emerald-50 to-emerald-100 rounded-xl p-4">
-                        <p class="text-xs font-medium text-emerald-600 uppercase tracking-wide">Avg Daily Spend</p>
-                        <p id="avg-daily-spend" class="mt-2 text-xl font-bold text-emerald-700">₹0</p>
-                    </div>
-                    <div class="bg-gradient-to-br from-fuchsia-50 to-fuchsia-100 rounded-xl p-4">
-                        <p class="text-xs font-medium text-fuchsia-600 uppercase tracking-wide">Projected Month-End Net</p>
-                        <p id="projected-net" class="mt-2 text-xl font-bold text-fuchsia-700">₹0</p>
-                    </div>
-                    <!-- Days Elapsed removed -->
-                </div>
-                <div class="chart-container h-64 md:h-72">
-                    <canvas id="projection-line-chart"></canvas>
-                </div>
-            </section>
-            
-            <!-- Transaction History -->
-            <section class="bg-white p-6 md:p-8 rounded-2xl shadow-md border border-gray-200">
-                <h2 class="text-2xl font-bold mb-6">Transaction History</h2>
-                 <p class="text-gray-600 mb-6">Here you can see a detailed list of all your transactions. Use the filters to narrow down the data by type (income or expenditure) or sort it by date or amount to get a clearer picture of your finances.</p>
-                <div class="flex justify-between items-center mb-3 flex-wrap gap-3">
-                    <div class="flex items-center gap-4">
-                        <h3 class="text-lg font-semibold text-gray-800">Filters</h3>
-                        <div class="flex flex-wrap gap-2 items-center" id="filtered-stats" aria-live="polite">
-                            <div id="filtered-total" class="stat-pill bg-blue-50 text-blue-700 border-blue-200">
-                                <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" d="M12 4.5v15m7.5-7.5h-15"/></svg>
-                                <span>Total: ₹0</span>
-                            </div>
-                        </div>
-                    </div>
-                    <button id="toggle-filters" aria-expanded="true" class="filter-action-btn text-sm px-4 py-2 transition">Hide Filters</button>
-                </div>
-                <div id="filter-controls" class="flex flex-wrap gap-4 mb-4 items-end">
-                    <select id="filter-type" class="border border-gray-300 rounded-lg px-4 py-2 focus:ring-2 focus:ring-blue-500">
-                        <option value="all">All Types</option>
-                        <option value="income">Income</option>
-                        <option value="expenditure">Expenditure</option>
-                    </select>
-                    <select id="sort-by" class="border border-gray-300 rounded-lg px-4 py-2 focus:ring-2 focus:ring-blue-500">
-                        <option value="date-desc">Date (Newest First)</option>
-                        <option value="date-asc">Date (Oldest First)</option>
-                        <option value="amount-desc">Amount (High to Low)</option>
-                        <option value="amount-asc">Amount (Low to High)</option>
-                    </select>
-                    <div class="relative" id="name-filter-wrapper">
-                        <button type="button" id="name-filter-toggle" class="name-filter-toggle">
-                            <span id="name-filter-label" class="truncate max-w-[130px]">All Names</span>
-                            <svg xmlns="http://www.w3.org/2000/svg" class="w-4 h-4 opacity-70" fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" d="M6 9l6 6 6-6"/></svg>
-                        </button>
-                        <div id="name-filter-panel" class="name-filter-panel hidden">
-                            <header>
-                                <input id="name-filter-search" class="name-filter-search" placeholder="Search names..." />
-                            </header>
-                            <div id="name-chips" class="flex flex-wrap gap-1 mb-2 hidden"></div>
-                            <div class="flex justify-between items-center mb-2">
-                                <button type="button" id="names-clear" class="text-[10px] font-medium text-gray-500 hover:text-gray-700">Clear</button>
-                                <button type="button" id="names-close" class="text-[10px] font-medium text-blue-600 hover:text-blue-700">Done</button>
-                            </div>
-                            <div id="name-filter-list" class="name-filter-list text-gray-700 text-xs"></div>
-                        </div>
-                    </div>
-                    <div class="flex flex-col">
-                        <label class="text-xs text-gray-500" for="filter-from">From</label>
-                        <input type="date" id="filter-from" class="border border-gray-300 rounded-lg px-3 py-2 focus:ring-2 focus:ring-blue-500" />
-                    </div>
-                    <div class="flex flex-col">
-                        <label class="text-xs text-gray-500" for="filter-to">To</label>
-                        <input type="date" id="filter-to" class="border border-gray-300 rounded-lg px-3 py-2 focus:ring-2 focus:ring-blue-500" />
-                    </div>
-                    <button id="filter-reset" class="filter-action-btn text-sm px-4 py-2">Reset</button>
-                </div>
-                <div class="overflow-x-auto hidden md:block">
-                    <table class="min-w-full divide-y divide-gray-200">
-                        <thead class="bg-gray-50">
-                            <tr>
-                                <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Name</th>
-                                <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Date</th>
-                                <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Amount (₹)</th>
-                                <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Type</th>
-                                <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Actions</th>
-                            </tr>
-                        </thead>
-                        <tbody id="transaction-table" class="bg-white divide-y divide-gray-200">
-                            <!-- Rows will be injected by JavaScript -->
-                        </tbody>
-                    </table>
-                </div>
-                <!-- Mobile cards list -->
-                <div id="transaction-list-mobile" class="md:hidden space-y-3 mt-2"></div>
-                <!-- Pagination controls -->
-                <div id="pagination" class="mt-6 flex items-center justify-between text-sm hidden">
-                    <div id="pagination-summary" class="text-gray-500"></div>
-                    <div class="flex items-center gap-2">
-                        <button id="page-prev" class="px-3 py-1 rounded border border-gray-300 bg-white disabled:opacity-40 disabled:cursor-not-allowed">Prev</button>
-                        <span id="page-indicator" class="font-medium"></span>
-                        <button id="page-next" class="px-3 py-1 rounded border border-gray-300 bg-white disabled:opacity-40 disabled:cursor-not-allowed">Next</button>
-                    </div>
-                </div>
-                <div class="mt-8 flex flex-col sm:flex-row gap-4 justify-center items-center" visibility="hidden">
-                    <button id="download-button" class="bg-green-600 text-white font-bold py-2 px-6 rounded-lg hover:bg-green-700 transition duration-300 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-green-500">Download Excel</button>
-                    <div>
-                        <input type="file" id="excel-input" accept=".xlsx,.xls" class="hidden" />
-                        <button id="import-excel-button" class="bg-indigo-600 text-white font-bold py-2 px-6 rounded-lg hover:bg-indigo-700 transition duration-300 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500">Import Excel</button>
-                    </div>
-                </div>
-            </section>
-        </main>
-    </div>
-
-    <script>
-        // Load CSV data from file instead of hardcoded string
-    let transactions = [];
-    let currentPage = 1; const PAGE_SIZE = 15;
-    let nextSuccessMessage = null;
-        // THEME HANDLING (simplified to dark/light only)
-        (function(){
-            const stored = localStorage.getItem('theme-preference-v2');
-            const prefersDark = window.matchMedia('(prefers-color-scheme: dark)').matches;
-            let initial = (stored === 'dark' || stored === 'light') ? stored : (prefersDark ? 'dark':'light');
-            if(stored === 'glass') initial = 'dark'; // migrate old value
-            function applyTheme(name){
-                document.body.classList.remove('theme-dark','theme-light','theme-glass','ios-glass');
-                document.body.classList.add(name === 'dark' ? 'theme-dark':'theme-light');
-            }
-            function applyLabel(){
-                const icon = document.getElementById('theme-toggle-icon');
-                const label = document.getElementById('theme-toggle-label');
-                if(!icon||!label) return;
-                if(document.body.classList.contains('theme-dark')){ icon.textContent='🌙'; label.textContent='Dark'; }
-                else { icon.textContent='☀️'; label.textContent='Light'; }
-            }
-            window.toggleTheme = function(){
-                const next = document.body.classList.contains('theme-dark') ? 'light':'dark';
-                applyTheme(next);
-                localStorage.setItem('theme-preference-v2', next);
-                applyLabel();
-                if(typeof updateChartsAndAnalytics === 'function') setTimeout(()=> updateChartsAndAnalytics(), 10);
-            };
-            applyTheme(initial);
-            document.addEventListener('DOMContentLoaded', ()=> {
-                const btn = document.getElementById('theme-toggle');
-                if(btn) btn.addEventListener('click', toggleTheme);
-                applyLabel();
-            });
-        })();
-    // Password protection state (no caching: prompt every time)
-    const ADMIN_PASSWORD = '8763951777';
-    let totalsBarChart, projectionLineChart;
-    // Removed CSV fallback (SQLite backend now authoritative)
-
-        function initializeEvents() {
-            const form = document.getElementById('transaction-form');
-            form.addEventListener('submit', handleFormSubmit);
-            document.getElementById('filter-type').addEventListener('change', ()=> { currentPage=1; render(); });
-            document.getElementById('sort-by').addEventListener('change', ()=> { currentPage=1; render(); });
-            // name filter events set up later (custom component)
-            document.getElementById('filter-from').addEventListener('change', ()=> { currentPage=1; render(); });
-            document.getElementById('filter-to').addEventListener('change', ()=> { currentPage=1; render(); });
-            document.getElementById('filter-reset').addEventListener('click', resetFilters);
-            setupNameFilter();
-            const toggleBtn = document.getElementById('toggle-filters');
-            if(toggleBtn) toggleBtn.addEventListener('click', toggleFilters);
-            document.getElementById('download-button').addEventListener('click', downloadExcel);
-            const importBtn = document.getElementById('import-excel-button');
-            const fileInput = document.getElementById('excel-input');
-            if(importBtn && fileInput){
-                importBtn.addEventListener('click', ()=> fileInput.click());
-                fileInput.addEventListener('change', handleExcelImport);
-            }
-            const saveBtn = document.getElementById('save-button');
-            if (saveBtn) saveBtn.addEventListener('click', persistTransactions);
-            const today = new Date().toISOString().split('T')[0];
-            const dateEl = document.getElementById('transaction-date');
-            if (dateEl) dateEl.value = today;
-        }
-
-        // Updated loader: hit API endpoint, fallback to embedded CSV
-        document.addEventListener('DOMContentLoaded', () => {
-            fetch('/api/transactions?ts=' + Date.now())
-                .then(r => r.ok ? r.json() : Promise.reject(r.status))
-                .then(data => { 
-                    transactions = data.transactions || []; 
-                    reassignIds(); 
-                    initializeEvents(); 
-                    render(); 
-                })
-                .catch(err => { 
-                    console.error('Load failed', err); 
-                    initializeEvents(); 
-                    render(); 
-                });
-        });
-
-        // Function to parse the specific CSV format
-        let nextId = 1;
-        function reassignIds(){
-            nextId = 1;
-            transactions = transactions.map(t => ({ ...t, id: nextId++ }));
-        }
-
-        // Function to generate and download the CSV file
-        function downloadExcel(){
-            if(typeof XLSX === 'undefined') { console.error('XLSX lib missing'); return; }
-            // Build two logical sheets or one composite? We'll match original dual layout in one sheet.
-            const expenditures = transactions.filter(t=> t.type==='expenditure');
-            const incomes = transactions.filter(t=> t.type==='income');
-            const maxLen = Math.max(expenditures.length, incomes.length);
-            const header1 = ["Expenditure","","","","","","","","Income"]; // visual separation
-            const header2 = ["Name","Date","Amount","Quantity","","","Name","Date","Amount"]; // keep spacing similar
-            const rows = [header1, header2];
-            for(let i=0;i<maxLen;i++){
-                const exp = expenditures[i] || {}; const inc = incomes[i] || {};
-                rows.push([
-                    exp.name||'', exp.date||'', exp.amount!=null?exp.amount:'', '', '', '',
-                    inc.name||'', inc.date||'', inc.amount!=null?inc.amount:''
-                ]);
-            }
-            const ws = XLSX.utils.aoa_to_sheet(rows);
-            // Column widths
-            ws['!cols'] = [ {wch:18},{wch:12},{wch:12},{wch:9},{wch:3},{wch:3},{wch:18},{wch:12},{wch:12} ];
-            const wb = XLSX.utils.book_new();
-            XLSX.utils.book_append_sheet(wb, ws, 'Financial Data');
-            XLSX.writeFile(wb, 'financial-data.xlsx');
-        }
-        // Excel Import Logic
-        function excelSerialToISO(n){
-            // Excel serial -> JS Date (assuming 1900 system)
-            const epoch = new Date(Date.UTC(1899,11,30));
-            const d = new Date(epoch.getTime() + n*86400000);
-            if(isNaN(d)) return '';
-            return d.toISOString().split('T')[0];
-        }
-        function normalizeDate(val){
-            if(!val) return '';
-            if(typeof val === 'number') return excelSerialToISO(val);
-            if(val instanceof Date) return val.toISOString().split('T')[0];
-            // Try parse textual dates
-            const parts = val.toString().trim();
-            if(!parts) return '';
-            // Already yyyy-mm-dd
-            if(/^[0-9]{4}-[0-9]{2}-[0-9]{2}$/.test(parts)) return parts;
-            const d = new Date(parts);
-            if(!isNaN(d)) return d.toISOString().split('T')[0];
-            return '';
-        }
-        function handleExcelImport(e){
-            const file = e.target.files && e.target.files[0];
-            if(!file){ return; }
-            if(typeof XLSX === 'undefined'){ console.error('XLSX lib missing'); return; }
-            const reader = new FileReader();
-            reader.onload = (evt)=> {
-                try {
-                    const data = new Uint8Array(evt.target.result);
-                    const wb = XLSX.read(data, { type:'array' });
-                    const sheetName = wb.SheetNames[0];
-                    const ws = wb.Sheets[sheetName];
-                    const aoa = XLSX.utils.sheet_to_json(ws, { header:1, raw:true, defval:'' });
-                    if(aoa.length < 3){ console.warn('Sheet too short'); return; }
-                    // Assume pattern created by exporter: first two header rows then data
-                    const newTx = [];
-                    for(let i=2;i<aoa.length;i++){
-                        const row = aoa[i]; if(!row || !row.length) continue;
-                        // expenditure cols 0,1,2; income 6,7,8
-                        const expName = (row[0]||'').toString().trim();
-                        const expDate = normalizeDate(row[1]);
-                        const expAmt = parseFloat(row[2]);
-                        if(expName && expDate && !isNaN(expAmt)) newTx.push({ type:'expenditure', name:expName, date:expDate, amount:expAmt });
-                        const incName = (row[6]||'').toString().trim();
-                        const incDate = normalizeDate(row[7]);
-                        const incAmt = parseFloat(row[8]);
-                        if(incName && incDate && !isNaN(incAmt)) newTx.push({ type:'income', name:incName, date:incDate, amount:incAmt });
-                    }
-                    if(!newTx.length){ console.warn('No transactions parsed from Excel'); return; }
-                    confirmModal('Import Excel', `Replace current ${transactions.length} transactions with ${newTx.length} imported?`, 'Import', 'bg-indigo-600 hover:bg-indigo-700', ()=> {
-                        transactions = newTx.map((t,i)=> ({ id:i+1, ...t }));
-                        nextId = transactions.length + 1;
-                        render();
-                        nextSuccessMessage = 'Excel import saved';
-                        persistTransactions();
-                    });
-                } catch(err){ console.error('Excel import failed', err); }
-                e.target.value=''; // reset input
-            };
-            reader.readAsArrayBuffer(file);
-        }
-
-        function handleFormSubmit(e) {
-            e.preventDefault();
-            const nameInput = document.getElementById('transaction-name');
-            const typeInput = document.getElementById('transaction-type');
-            const dateInput = document.getElementById('transaction-date');
-            const amountInput = document.getElementById('transaction-amount');
-            const idInput = document.getElementById('transaction-id');
-
-            const name = nameInput.value;
-            const type = typeInput.value;
-            const date = dateInput.value;
-            const amount = parseFloat(amountInput.value);
-            const id = idInput.value;
-            
-            if (!name || !date || isNaN(amount) || amount <= 0) {
-                return;
-            }
-
-            if (id) {
-                const transactionIndex = transactions.findIndex(t => t.id == id);
-                if (transactionIndex > -1) {
-                    transactions[transactionIndex] = { id: parseInt(id), type, name, date, amount };
-                    nextSuccessMessage = 'Transaction updated';
+async function initDb() {
+  if(usePg){
+    await runAsync(`CREATE TABLE IF NOT EXISTS transactions (
+      id SERIAL PRIMARY KEY,
+      type TEXT NOT NULL CHECK (type IN ('income','expenditure')),
+      name TEXT NOT NULL,
+      date DATE NOT NULL,
+      amount NUMERIC NOT NULL
+    )`);
+    // Optional one-time migration from existing SQLite data file
+    if(process.env.PG_MIGRATE_FROM_SQLITE === '1'){
+      const possibleSqlite = process.env.DB_PATH ? path.resolve(process.env.DB_PATH) : path.join(__dirname, 'data.db');
+      try {
+        if(fs.existsSync(possibleSqlite)){
+          const tmpDb = new sqlite3.Database(possibleSqlite);
+          const getAll = (sql, params=[]) => new Promise((res,rej)=> tmpDb.all(sql, params,(e,r)=> e?rej(e):res(r)));
+          const rows = await getAll('SELECT * FROM transactions');
+          const pgCount = await pool.query('SELECT COUNT(*) FROM transactions');
+            if(parseInt(pgCount.rows[0].count,10) === 0 && rows.length){
+              console.log(`[Migration] Importing ${rows.length} rows from SQLite -> Postgres`);
+              await pool.query('BEGIN');
+              try {
+                for(const r of rows){
+                  await pool.query('INSERT INTO transactions (type,name,date,amount) VALUES ($1,$2,$3,$4)', [r.type, r.name, r.date, r.amount]);
                 }
+                await pool.query('COMMIT');
+                console.log('[Migration] Completed successfully.');
+              } catch(mErr){
+                await pool.query('ROLLBACK');
+                console.error('[Migration] Failed, rolled back:', mErr.message);
+              }
             } else {
-                transactions.push({ id: nextId++, type, name, date, amount });
-                nextSuccessMessage = 'Transaction added';
+              console.log('[Migration] Skipped (Postgres not empty or no rows in SQLite).');
             }
-            
-            nameInput.value = '';
-            typeInput.value = 'expenditure';
-            dateInput.value = new Date().toISOString().split('T')[0];
-            amountInput.value = '';
-            idInput.value = '';
-            document.getElementById('submit-button').textContent = 'Add Transaction';
-
-            render();
-            schedulePersist();
+          tmpDb.close();
+        } else {
+          console.log('[Migration] No SQLite file found to migrate.');
         }
-        // Auto-persist with debounce
-        let persistTimer;
-        function schedulePersist(msg){
-            clearTimeout(persistTimer);
-            if(msg) nextSuccessMessage = msg;
-            persistTimer = setTimeout(persistTransactions, 600);
-        }
-            let lastAdminPassword = null;
-            function ensureToastContainer(){
-    let c = document.getElementById('toast-container');
-    if(!c){ c = document.createElement('div'); c.id='toast-container'; c.className='fixed top-4 right-4 z-50 flex flex-col gap-2'; document.body.appendChild(c); }
-    return c;
-}
-function showToast(msg, type='success', duration=2600){
-    const c = ensureToastContainer();
-    const el = document.createElement('div');
-    el.role='status';
-    el.className = `px-4 py-2 rounded-lg shadow text-sm font-medium border backdrop-blur-sm ${type==='error' ? 'bg-red-600/90 text-white border-red-500' : 'bg-green-600/90 text-white border-green-500'}`;
-    el.textContent = msg;
-    el.style.opacity='0'; el.style.transform='translateY(-4px)'; el.style.transition='opacity .25s, transform .25s';
-    c.appendChild(el);
-    requestAnimationFrame(()=> { el.style.opacity='1'; el.style.transform='translateY(0)'; });
-    setTimeout(()=> { el.style.opacity='0'; el.style.transform='translateY(-4px)'; setTimeout(()=> el.remove(), 320); }, duration);
-}
-function persistTransactions(pwd){
-    const password = pwd || lastAdminPassword;
-    if(!password){
-        passwordModal('save changes', (pw)=> persistTransactions(pw));
-        return;
+      } catch(e){ console.warn('[Migration] Error during migration attempt:', e.message); }
     }
-    fetch('/api/transactions', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json', 'X-Admin-Password': password },
-        body: JSON.stringify({ transactions: transactions.map(({id, ...rest}) => rest) })
-    }).then(r => { if(!r.ok) throw new Error('Save failed'); return r.json(); })
-      .then(()=> { lastAdminPassword = password; return fetch('/api/transactions'); })
-      .then(r=> r.json())
-      .then(data=> { transactions = data.transactions || []; reassignIds(); render(); showToast(nextSuccessMessage || 'Saved'); nextSuccessMessage = null; })
-      .catch(err => { console.error('Persist error:', err); showToast('Save failed','error',4000); });
+  } else {
+    await execAsync(`CREATE TABLE IF NOT EXISTS transactions (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      type TEXT NOT NULL CHECK(type IN ('income','expenditure')),
+      name TEXT NOT NULL,
+      date TEXT NOT NULL,
+      amount REAL NOT NULL
+    );`);
+  }
 }
 
-        function handleEditTransaction(id) {
-            const transaction = transactions.find(t => t.id === id);
-            if (!transaction) return;
-
-            document.getElementById('transaction-id').value = transaction.id;
-            document.getElementById('transaction-name').value = transaction.name;
-            document.getElementById('transaction-type').value = transaction.type;
-            // Normalize date into YYYY-MM-DD for date input (handles variants or Date objects)
-            let raw = transaction.date;
-            let iso = '';
-            if(raw instanceof Date) {
-                iso = raw.toISOString().slice(0,10);
-            } else if (typeof raw === 'string') {
-                // If already YYYY-MM-DD
-                if(/^\d{4}-\d{2}-\d{2}$/.test(raw)) {
-                    iso = raw;
-                } else {
-                    // Try to parse common formats (DD/MM/YYYY, MM/DD/YYYY, YYYY/MM/DD)
-                    const cleaned = raw.trim();
-                    let dObj = null;
-                    if(/^\d{4}[\/\-]\d{1,2}[\/\-]\d{1,2}$/.test(cleaned)){
-                        dObj = new Date(cleaned.replace(/\//g,'-'));
-                    } else if(/^\d{1,2}[\/\-]\d{1,2}[\/\-]\d{4}$/.test(cleaned)){
-                        const parts = cleaned.split(/[\/\-]/); // assume D/M/Y
-                        const [p1,p2,p3] = parts.map(p=> p.padStart(2,'0'));
-                        // Determine if format is D/M/Y or M/D/Y by >12 heuristic
-                        let day = p1, month = p2, year = p3;
-                        if(parseInt(p1,10) > 12 && parseInt(p2,10) <= 12){
-                            day = p1; month = p2;
-                        } else if(parseInt(p2,10) > 12 && parseInt(p1,10) <= 12){
-                            // swap if second clearly day
-                            month = p1; day = p2;
-                        }
-                        dObj = new Date(`${year}-${month}-${day}`);
-                    } else if(/T\d{2}:\d{2}:\d{2}/.test(cleaned)) { // ISO datetime
-                        dObj = new Date(cleaned);
-                    }
-                    if(dObj && !isNaN(dObj)) {
-                        iso = dObj.toISOString().slice(0,10);
-                    }
-                }
-            }
-            if(!iso){
-                try { const d = new Date(raw); if(!isNaN(d)) iso = d.toISOString().slice(0,10); } catch(_){}
-            }
-            if(!iso) iso = '';
-            document.getElementById('transaction-date').value = iso;
-            document.getElementById('transaction-amount').value = transaction.amount;
-            document.getElementById('submit-button').textContent = 'Update Transaction';
-            window.scrollTo({ top: 0, behavior: 'smooth' });
-        }
-
-        function render() {
-            updateKeyMetrics();
-            renderTransactionTable();
-            updateChartsAndAnalytics();
-        }
-        function toggleFilters(){
-            const container = document.getElementById('filter-controls');
-            const btn = document.getElementById('toggle-filters');
-            if(!container || !btn) return;
-            const hidden = container.classList.toggle('hidden');
-            btn.textContent = hidden ? 'Show Filters' : 'Hide Filters';
-            btn.setAttribute('aria-expanded', String(!hidden));
-        }
-
-        function toNumber(v){
-            if(typeof v === 'number' && !isNaN(v)) return v;
-            if(typeof v === 'string'){
-                // Remove commas and currency symbols/spaces
-                const cleaned = v.replace(/[^0-9+\-\.]/g,'');
-                const num = parseFloat(cleaned);
-                return isNaN(num)? 0 : num;
-            }
-            return 0;
-        }
-        function formatCurrency(amount) {
-            const n = toNumber(amount);
-            return new Intl.NumberFormat('en-IN', { style: 'currency', currency: 'INR', minimumFractionDigits: 0 }).format(n);
-        }
-
-        function updateKeyMetrics() {
-            const totalIncome = transactions.filter(t => t.type === 'income').reduce((sum, t) => sum + toNumber(t.amount), 0);
-            const totalExpenditure = transactions.filter(t => t.type === 'expenditure').reduce((sum, t) => sum + toNumber(t.amount), 0);
-            const netBalance = totalIncome - totalExpenditure;
-
-            document.getElementById('total-income').textContent = formatCurrency(totalIncome);
-            document.getElementById('total-expenditure').textContent = formatCurrency(totalExpenditure);
-            
-            const netBalanceEl = document.getElementById('net-balance');
-            netBalanceEl.textContent = formatCurrency(netBalance);
-            netBalanceEl.classList.toggle('text-green-600', netBalance >= 0);
-            netBalanceEl.classList.toggle('text-red-600', netBalance < 0);
-        }
-
-        function resetFilters(){
-            document.getElementById('filter-type').value='all';
-            document.getElementById('sort-by').value='date-desc';
-            selectedNameFilters = [];
-            document.getElementById('filter-from').value='';
-            document.getElementById('filter-to').value='';
-            render();
-        }
-        function clearNameSelection(){ selectedNameFilters = []; render(); }
-
-    function renderTransactionTable() {
-            const tableBody = document.getElementById('transaction-table');
-            if (tableBody) tableBody.innerHTML = '';
-            const mobileList = document.getElementById('transaction-list-mobile');
-            if (mobileList) mobileList.innerHTML = '';
-            
-            const filterValue = document.getElementById('filter-type').value;
-            const sortValue = document.getElementById('sort-by').value;
-
-            let filteredTransactions = transactions;
-            if(filterValue !== 'all') {
-                filteredTransactions = transactions.filter(t => t.type === filterValue);
-            }
-
-            if(selectedNameFilters.length){
-                filteredTransactions = filteredTransactions.filter(t => selectedNameFilters.includes(t.name.toLowerCase()));
-            }
-            const fromDate = document.getElementById('filter-from').value;
-            const toDate = document.getElementById('filter-to').value;
-            if(fromDate) filteredTransactions = filteredTransactions.filter(t => t.date >= fromDate);
-            if(toDate) filteredTransactions = filteredTransactions.filter(t => t.date <= toDate);
-            // Min/Max amount filters removed
-
-            filteredTransactions.sort((a, b) => {
-                switch(sortValue) {
-                    case 'date-asc': return new Date(a.date) - new Date(b.date);
-                    case 'amount-desc': return b.amount - a.amount;
-                    case 'amount-asc': return a.amount - b.amount;
-                    case 'date-desc':
-                    default:
-                        return new Date(b.date) - new Date(a.date);
-                }
-            });
-
-            const totalEl = document.getElementById('filtered-total');
-            if(totalEl){
-                const sum = filteredTransactions.reduce((s,t)=> s + toNumber(t.amount), 0);
-                totalEl.querySelector('span').textContent = 'Total: ' + formatCurrency(sum);
-            }
-        // Pagination setup
-        const totalItems = filteredTransactions.length;
-        const totalPages = Math.max(1, Math.ceil(totalItems / PAGE_SIZE));
-        if(currentPage > totalPages) currentPage = totalPages;
-        const startIdx = (currentPage - 1) * PAGE_SIZE;
-        const pageItems = filteredTransactions.slice(startIdx, startIdx + PAGE_SIZE);
-        updatePagination(totalItems, totalPages, startIdx + 1, startIdx + pageItems.length);
-
-        pageItems.forEach(t => {
-                if (tableBody) {
-                    const row = document.createElement('tr');
-                    row.className = 'hover:bg-gray-50';
-                    row.innerHTML = `
-                        <td class=\"px-6 py-4 whitespace-nowrap\"><div class=\"text-sm font-medium text-gray-900\">${t.name}</div></td>
-                        <td class=\"px-6 py-4 whitespace-nowrap\"><div class=\"text-sm text-gray-700\">${new Date(t.date).toLocaleDateString('en-IN', {day: 'numeric', month: 'short', year: 'numeric'})}</div></td>
-                        <td class=\"px-6 py-4 whitespace-nowrap\"><div class=\"text-sm font-semibold ${t.type === 'income' ? 'text-green-700' : 'text-gray-900'}\">${formatCurrency(t.amount)}</div></td>
-                        <td class=\"px-6 py-4 whitespace-nowrap\"><span class=\"px-3 py-1 inline-flex text-xs leading-5 font-semibold rounded-full ${t.type === 'income' ? 'bg-green-100 text-green-800' : 'bg-red-100 text-red-800'}\">${t.type}</span></td>
-                        <td class="px-6 py-4 whitespace-nowrap text-right text-sm font-medium space-x-2">
-                            <button aria-label="Edit" class="icon-btn" onclick="handleEditTransaction(${t.id})"><span class="sr-only">Edit</span><svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.5-1.5l-4.5 4.5m-1-5l2-2a2 2 0 013 0l4.5 4.5-5 5L14 19a2 2 0 01-3 0l-5-5a2 2 0 010-3z" /></svg></button>
-                            <button aria-label="Delete" class="icon-btn icon-btn-danger" onclick="handleDeleteTransaction(${t.id})"><span class="sr-only">Delete</span><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="3 6 5 6 21 6"/><path d="M19 6l-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6m5 0V4a2 2 0 0 1 2-2h0a2 2 0 0 1 2 2v2"/><line x1="10" y1="11" x2="10" y2="17"/><line x1="14" y1="11" x2="14" y2="17"/></svg></button>
-                        </td>`;
-                    tableBody.appendChild(row);
-                }
-                if (mobileList) {
-                    const card = document.createElement('div');
-                    card.className = 'bg-white border border-gray-200 rounded-xl p-4 shadow-sm flex justify-between items-start';
-                    card.innerHTML = `
-                        <div>
-                            <div class=\"text-sm font-semibold text-gray-900 mb-0.5\">${t.name}</div>
-                            <div class=\"text-xs text-gray-500 mb-1\">${new Date(t.date).toLocaleDateString('en-IN', {day: 'numeric', month: 'short'})}</div>
-                            <div class=\"text-base font-bold ${t.type === 'income' ? 'text-green-600' : 'text-gray-800'}\">${formatCurrency(t.amount)}</div>
-                            <span class=\"mt-2 inline-block text-[10px] uppercase tracking-wide font-semibold px-2 py-1 rounded ${t.type === 'income' ? 'bg-green-100 text-green-700' : 'bg-red-100 text-red-700'}\">${t.type}</span>
-                            <div class=\"flex gap-2 mt-2\">
-                                <button aria-label=\"Edit\" class=\"icon-btn\" onclick=\"handleEditTransaction(${t.id})\"><span class=\"sr-only\">Edit</span><svg xmlns=\"http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.5-1.5l-4.5 4.5m-1-5l2-2a2 2 0 013 0l4.5 4.5-5 5L14 19a2 2 0 01-3 0l-5-5a2 2 0 010-3z" /></svg></button>
-                                <button aria-label=\"Delete\" class=\"icon-btn icon-btn-danger\" onclick=\"handleDeleteTransaction(${t.id})\"><span class=\"sr-only\">Delete</span><svg xmlns=\"http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="3 6 5 6 21 6"/><path d="M19 6l-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6m5 0V4a2 2 0 0 1 2-2h0a2 2 0 0 1 2 2v2"/><line x1="10" y1="11" x2="10" y2="17"/><line x1="14" y1="11" x2="14" y2="17"/></svg></button>
-                            </div>
-                        </div>`;
-                    mobileList.appendChild(card);
-                }
-            });
-        }
-    function updatePagination(totalItems, totalPages, from, to){
-        const wrap = document.getElementById('pagination');
-        if(!wrap) return;
-        if(totalItems <= PAGE_SIZE){ wrap.classList.add('hidden'); return; } else wrap.classList.remove('hidden');
-        const summary = document.getElementById('pagination-summary');
-        const indicator = document.getElementById('page-indicator');
-        const prev = document.getElementById('page-prev');
-        const next = document.getElementById('page-next');
-        if(summary) summary.textContent = `${from}-${to} of ${totalItems}`;
-        if(indicator) indicator.textContent = `Page ${currentPage} / ${totalPages}`;
-        if(prev){ prev.disabled = currentPage === 1; prev.onclick = ()=> { if(currentPage>1){ currentPage--; renderTransactionTable(); } }; }
-        if(next){ next.disabled = currentPage === totalPages; next.onclick = ()=> { if(currentPage < totalPages){ currentPage++; renderTransactionTable(); } }; }
+// Regenerate combined dual-column CSV after data changes
+async function regenerateDualCsv(){
+  try {
+    const rows = await allAsync('SELECT * FROM transactions ORDER BY id ASC');
+    const expenditures = rows.filter(r=> r.type==='expenditure');
+    const incomes = rows.filter(r=> r.type==='income');
+    const max = Math.max(expenditures.length, incomes.length);
+    let csv = 'Expenditure,,,,,,,Income,,,,,,,\n';
+    csv += 'Name,Date,Amount,Quantity,,Name,Date,Amount,,,,,,,\n';
+    for(let i=0;i<max;i++){
+      const exp = expenditures[i] || {};
+      const inc = incomes[i] || {};
+      const expRow = `${exp.name||''},${exp.date||''},${exp.amount!=null?exp.amount:''},,,`;
+      const incRow = `${inc.name||''},${inc.date||''},${inc.amount!=null?inc.amount:''},,,,,`;
+      csv += expRow + incRow + '\n';
     }
-        // Modal infrastructure
-        function createModal(id, innerHtml){
-            let existing = document.getElementById(id);
-            if(existing) existing.remove();
-            const wrap = document.createElement('div');
-            wrap.id = id;
-            wrap.className = 'fixed inset-0 z-50 flex items-center justify-center bg-black/40 backdrop-blur-sm';
-            wrap.innerHTML = `\n<div class="bg-white rounded-2xl shadow-2xl w-full max-w-sm p-6 animate-fade-in">${innerHtml}</div>`;
-            document.body.appendChild(wrap);
-            return wrap;
-        }
-        function closeModal(id){ const el = document.getElementById(id); if(el) el.remove(); }
-        function passwordModal(actionLabel, onSuccess){
-            const modal = createModal('password-modal', `
-                <h3 class="text-xl font-semibold mb-4 text-gray-800">Admin Password</h3>
-                <p class="text-sm text-gray-600 mb-4">Enter password to ${actionLabel}.</p>
-                <input type="password" id="admin-pass-input" class="w-full border border-gray-300 rounded-lg px-4 py-2 focus:ring-2 focus:ring-blue-500 focus:border-blue-500 mb-4" placeholder="Password" autofocus />
-                <div id="pass-error" class="text-red-600 text-sm mb-3 hidden">Incorrect password.</div>
-                <div class="flex justify-end gap-3">
-                    <button id="pass-cancel" class="px-4 py-2 rounded-lg bg-gray-100 hover:bg-gray-200 text-gray-700 font-medium">Cancel</button>
-                    <button id="pass-submit" class="px-4 py-2 rounded-lg bg-blue-600 hover:bg-blue-700 text-white font-semibold shadow">Confirm</button>
-                </div>`);
-            const input = modal.querySelector('#admin-pass-input');
-            const err = modal.querySelector('#pass-error');
-            modal.querySelector('#pass-cancel').onclick = ()=> closeModal('password-modal');
-            modal.querySelector('#pass-submit').onclick = () => {
-                if(input.value === ADMIN_PASSWORD){
-                    closeModal('password-modal');
-                    onSuccess(input.value);
-                } else { err.classList.remove('hidden'); }
-            };
-            input.addEventListener('keydown', e=> { if(e.key==='Enter') modal.querySelector('#pass-submit').click(); });
-        }
-        function confirmModal(title, message, confirmLabel, confirmColorClasses, onConfirm){
-            const modal = createModal('confirm-modal', `
-                <h3 class="text-xl font-semibold mb-2 text-gray-800">${title}</h3>
-                <p class="text-sm text-gray-600 mb-5">${message}</p>
-                <div class="flex justify-end gap-3">
-                    <button id="conf-cancel" class="px-4 py-2 rounded-lg bg-gray-100 hover:bg-gray-200 text-gray-700 font-medium">Cancel</button>
-                    <button id="conf-ok" class="px-4 py-2 rounded-lg ${confirmColorClasses} text-white font-semibold shadow">${confirmLabel}</button>
-                </div>`);
-            modal.querySelector('#conf-cancel').onclick = ()=> closeModal('confirm-modal');
-            modal.querySelector('#conf-ok').onclick = ()=> { closeModal('confirm-modal'); onConfirm(); };
-        }
+    fs.writeFileSync(path.join(__dirname,'updated-financial-data.csv'), csv, 'utf8');
+  } catch(e){
+    console.warn('CSV regeneration failed:', e.message);
+  }
+}
 
-        // Override CRUD handlers with password protection
-        const originalHandleFormSubmit = handleFormSubmit;
-        handleFormSubmit = function(e){
-            e.preventDefault();
-            const isUpdate = !!document.getElementById('transaction-id').value;
-            passwordModal(isUpdate ? 'update this transaction' : 'add this transaction', (pwd)=> {
-                originalHandleFormSubmit(e);
-                persistTransactions(pwd);
-            });
-        }
-        const originalHandleEdit = handleEditTransaction;
-        handleEditTransaction = function(id){
-            passwordModal('edit this transaction', ()=> {
-                originalHandleEdit(id);
-            });
-        }
-        function handleDeleteTransaction(id){
-            const t = transactions.find(tr=> tr.id === id);
-            if(!t) return;
-            passwordModal('delete this transaction', (pwd)=> {
-                confirmModal('Delete Transaction', `Are you sure you want to delete "${t.name}" for ${formatCurrency(t.amount)}? This cannot be undone.`, 'Delete', 'bg-red-600 hover:bg-red-700', ()=> {
-                    const idx = transactions.findIndex(tr=> tr.id === id);
-                    if(idx === -1) return;
-                    transactions.splice(idx,1);
-                    reassignIds();
-                    render();
-                    persistTransactions(pwd);
-                });
-            });
-        }
+// (Legacy CSV import functionality removed)
+// Simple password middleware (shared secret) for mutating operations
+const ADMIN_PASSWORD = process.env.ADMIN_PASSWORD || '8763951777';
+function requirePassword(req,res,next){
+  const provided = req.headers['x-admin-password'];
+  if(provided && provided === ADMIN_PASSWORD) return next();
+  return res.status(401).json({ error: 'Unauthorized' });
+}
 
-        function updateChartsAndAnalytics(){
-            // totals bar
-            const income = transactions.filter(t=>t.type==='income').reduce((s,t)=>s+t.amount,0);
-            const expend = transactions.filter(t=>t.type==='expenditure').reduce((s,t)=>s+t.amount,0);
-            const net = income - expend;
-            const barCtx = document.getElementById('totals-bar-chart').getContext('2d');
-            if(totalsBarChart) totalsBarChart.destroy();
-            totalsBarChart = new Chart(barCtx, {
-                type: 'bar',
-                data: { labels:['Income','Expenditure','Net'], datasets:[{ label:'Amount (₹)', data:[income, expend, net], backgroundColor:['#16a34a','#dc2626', net>=0?'#2563eb':'#7f1d1d'] }]},
-                options: { responsive:true, plugins:{ tooltip:{ callbacks:{ label:c=> formatCurrency(c.parsed.y) } } }, scales:{ y:{ beginAtZero:true } } }
-            });
-            // Projection & averages
-            if(!transactions.length) return;
-            const byDate = {};
-            transactions.forEach(t=> { if(!byDate[t.date]) byDate[t.date]={ income:0, expenditure:0 }; byDate[t.date][t.type]+=t.amount; });
-            const sortedDates = Object.keys(byDate).sort((a,b)=> new Date(a)-new Date(b));
-            const cumulative = [];
-            let running = 0; sortedDates.forEach(d=> { running += (byDate[d].income - byDate[d].expenditure); cumulative.push({date:d, value:running}); });
-            const first = new Date(sortedDates[0]);
-            const last = new Date(sortedDates[sortedDates.length-1]);
-            const daysElapsed = Math.max(1, Math.round((last-first)/86400000)+1);
-            const avgIncome = income / daysElapsed;
-            const avgSpend = expend / daysElapsed;
-            const daysInMonth = new Date(last.getFullYear(), last.getMonth()+1, 0).getDate();
-            const projectedNet = Math.round((net / daysElapsed) * daysInMonth);
-            document.getElementById('avg-daily-income').textContent = formatCurrency(Math.round(avgIncome));
-            document.getElementById('avg-daily-spend').textContent = formatCurrency(Math.round(avgSpend));
-            document.getElementById('projected-net').textContent = formatCurrency(projectedNet);
-            // Days elapsed removed
-            const projCtx = document.getElementById('projection-line-chart').getContext('2d');
-            if(projectionLineChart) projectionLineChart.destroy();
-            // Extend projection to month end
-            const projectedDates = [...cumulative.map(p=>p.date)];
-            const lastDateObj = last;
-            while(projectedDates.length < daysInMonth){
-                const next = new Date(first.getFullYear(), first.getMonth(), projectedDates.length+1);
-                if(next > lastDateObj){
-                    const projectedValue = Math.round((net/daysElapsed) * (projectedDates.length+1));
-                    cumulative.push({ date: next.toISOString().split('T')[0], value: projectedValue });
-                    projectedDates.push(next.toISOString().split('T')[0]);
-                } else projectedDates.push(next.toISOString().split('T')[0]);
+// Removed /api/import-csv-once endpoint
+
+app.use(cors());
+app.use(express.json());
+app.use(express.static(__dirname));
+
+// List transactions (JSON)
+app.get('/api/transactions', async (req, res) => {
+  try {
+    const rows = await allAsync('SELECT * FROM transactions ORDER BY date DESC, id DESC');
+    res.json({ transactions: rows });
+  } catch (e) {
+    res.status(500).json({ error: 'Failed to fetch transactions' });
+  }
+});
+
+// Bulk replace (idempotent save from client state)
+app.post('/api/transactions', requirePassword, async (req, res) => {
+  const { transactions } = req.body;
+  if (!Array.isArray(transactions)) return res.status(400).json({ error: 'Invalid payload' });
+  try {
+    const allowEmpty = process.env.ALLOW_EMPTY_SAVE === '1';
+    const existing = await allAsync('SELECT COUNT(*) as c FROM transactions');
+    if(!allowEmpty && transactions.length === 0 && existing[0].c > 0){
+      return res.status(400).json({ error: 'Refusing empty save that would delete existing data (set ALLOW_EMPTY_SAVE=1 to override).' });
+    }
+  if(usePg){
+      await pool.query('BEGIN');
+      await pool.query('DELETE FROM transactions');
+      for(const t of transactions){
+    const amt = typeof t.amount === 'string' ? parseFloat(t.amount.replace(/[^0-9.+-]/g,'')) : t.amount;
+    if (!t.type || !t.name || !t.date || typeof amt !== 'number' || isNaN(amt)) continue;
+    await pool.query('INSERT INTO transactions (type,name,date,amount) VALUES ($1,$2,$3,$4)', [t.type, t.name, t.date, amt]);
+      }
+      await pool.query('COMMIT');
+    } else {
+      await execAsync('BEGIN');
+      await execAsync('DELETE FROM transactions');
+      for (const t of transactions) {
+    const amt = typeof t.amount === 'string' ? parseFloat(t.amount.replace(/[^0-9.+-]/g,'')) : t.amount;
+    if (!t.type || !t.name || !t.date || typeof amt !== 'number' || isNaN(amt)) continue;
+    await runAsync('INSERT INTO transactions (type, name, date, amount) VALUES (?,?,?,?)', [t.type, t.name, t.date, amt]);
+      }
+      await execAsync('COMMIT');
+    }
+    regenerateDualCsv();
+    res.json({ status: 'ok' });
+  } catch (e) {
+    if(usePg){ try { await pool.query('ROLLBACK'); } catch(_){} } else { await execAsync('ROLLBACK').catch(()=>{}); }
+    res.status(500).json({ error: 'Failed to save transactions' });
+  }
+});
+
+// Optional export as CSV for download/backups
+app.get('/api/transactions.csv', async (req, res) => {
+  try {
+    const rows = await allAsync('SELECT * FROM transactions ORDER BY date ASC, id ASC');
+    let csv = 'type,name,date,amount\n';
+    for (const r of rows) csv += `${r.type},${(r.name||'').replace(/,/g,' ')},${r.date},${r.amount}\n`;
+    res.type('text/csv').send(csv);
+  } catch (e) {
+    res.status(500).json({ error: 'Failed to export CSV' });
+  }
+});
+
+const port = process.env.PORT || 3000;
+// Simple debug endpoint (optional) to inspect DB status (no auth to simplify diagnostics; add password if needed)
+app.get('/api/debug/db-info', async (req,res)=> {
+  try {
+    const rows = await allAsync('SELECT COUNT(*) as count FROM transactions');
+    let stats = null;
+    if(!usePg){ try { stats = fs.statSync(dbFile); } catch(e){ } }
+    res.json({
+      driver: usePg ? 'postgres' : 'sqlite',
+      dbFile: usePg ? null : dbFile,
+      rowCount: rows[0].count,
+      fileSizeBytes: stats? stats.size : null,
+      mtime: stats? stats.mtime : null
+    });
+  } catch(e){
+    res.status(500).json({ error:'Failed to read db info' });
+  }
+});
+
+async function logDbStatus(){
+  try {
+    const rows = await allAsync('SELECT COUNT(*) as count FROM transactions');
+    if(usePg){
+      console.log(`[Postgres] Rows: ${rows[0].count}`);
+    } else {
+      let stats = null; try { stats = fs.statSync(dbFile); } catch(e){}
+      console.log(`[SQLite] Rows: ${rows[0].count} | File: ${dbFile} ${stats? '('+stats.size+' bytes)':''}`);
+    }
+  } catch(e){
+    console.warn('Could not log DB status:', e.message);
+  }
+}
+
+initDb()
+  .then(() => logDbStatus())
+  .then(() => {
+    if(!usePg && process.env.DB_BACKUPS === '1'){
+      const backupDir = path.join(path.dirname(dbFile), 'backups');
+      try { fs.mkdirSync(backupDir, { recursive: true }); } catch(e) {}
+      const doBackup = () => {
+        try {
+          if(fs.existsSync(dbFile)){
+            const stamp = new Date().toISOString().replace(/[:.]/g,'-');
+            const target = path.join(backupDir, `data-${stamp}.db`);
+            fs.copyFileSync(dbFile, target);
+            const files = fs.readdirSync(backupDir).filter(f=>f.endsWith('.db')).sort();
+            if(files.length > 20){
+              for(const f of files.slice(0, files.length-20)){
+                try { fs.unlinkSync(path.join(backupDir,f)); } catch(e){}
+              }
             }
-            projectionLineChart = new Chart(projCtx, {
-                type:'line',
-                data:{ labels: cumulative.map(p=>p.date), datasets:[{ label:'Cumulative Net (Projected)', data: cumulative.map(p=>p.value), borderColor:'#6366F1', backgroundColor:'rgba(99,102,241,0.15)', fill:true, tension:0.35 }]},
-                options:{ responsive:true, plugins:{ tooltip:{ callbacks:{ label:c=> formatCurrency(c.parsed.y) } } }, scales:{ y:{ beginAtZero:false } } }
-            });
-            // Populate name dropdown options
-            refreshNameFilterList();
-        }
-        // Custom Name Filter Component
-        let selectedNameFilters = [];
-        function setupNameFilter(){
-            const panel = document.getElementById('name-filter-panel');
-            const toggleBtn = document.getElementById('name-filter-toggle');
-            const closeBtn = document.getElementById('names-close');
-            const clearBtn = document.getElementById('names-clear');
-            const searchInput = document.getElementById('name-filter-search');
-            function closePanel(){
-                if(!panel) return;
-                panel.classList.add('hidden');
-                panel.classList.remove('mobile-full');
-                const backdrop = document.querySelector('.name-filter-backdrop');
-                if(backdrop) backdrop.remove();
-                document.body.style.overflow='';
-                document.body.classList.remove('no-blur');
-            }
-            document.addEventListener('click', (e)=>{
-                if(!panel || !toggleBtn) return;
-                if(panel.classList.contains('hidden')) return;
-                if(!panel.contains(e.target) && !toggleBtn.contains(e.target)) {
-                    closePanel();
-                }
-            });
-            if(toggleBtn) toggleBtn.addEventListener('click', ()=>{
-                if(!panel) return;
-                const opening = panel.classList.contains('hidden');
-                if(opening){
-                    panel.classList.remove('hidden');
-                    if(window.innerWidth < 640){
-                        panel.classList.add('mobile-full');
-                        const backdrop = document.createElement('div');
-                        backdrop.className = 'name-filter-backdrop';
-                        backdrop.addEventListener('click', closePanel);
-                        document.body.appendChild(backdrop);
-                        document.body.style.overflow='hidden';
-                    }
-                    document.body.classList.add('no-blur');
-                    if(searchInput) searchInput.focus();
-                } else {
-                    closePanel();
-                }
-            });
-            if(closeBtn) closeBtn.addEventListener('click', closePanel);
-            if(clearBtn) clearBtn.addEventListener('click', ()=> { selectedNameFilters = []; currentPage=1; refreshNameFilterList(); render(); });
-            if(searchInput) searchInput.addEventListener('input', ()=> refreshNameFilterList());
-            refreshNameFilterList();
-        }
-        function refreshNameFilterList(){
-            const listEl = document.getElementById('name-filter-list');
-            const chipsEl = document.getElementById('name-chips');
-            const labelEl = document.getElementById('name-filter-label');
-            const search = (document.getElementById('name-filter-search')?.value || '').toLowerCase();
-            if(!listEl) return;
-            const names = Array.from(new Set(transactions.map(t=> t.name))).sort((a,b)=> a.localeCompare(b));
-            const filtered = names.filter(n => n.toLowerCase().includes(search));
-            listEl.innerHTML = filtered.map(n=> {
-                const val = n.toLowerCase();
-                const checked = selectedNameFilters.includes(val);
-                return `<div class="name-filter-item ${checked?'bg-indigo-50':''}" data-val="${val}">
-                    <input type="checkbox" class="accent-indigo-600 cursor-pointer" ${checked?'checked':''} />
-                    <span class="truncate">${n}</span>
-                </div>`;
-            }).join(filtered.length?'' : '<div class="text-[11px] text-gray-400 px-1 py-2">No matches</div>');
-            listEl.querySelectorAll('.name-filter-item').forEach(item => {
-                item.addEventListener('click', (e)=>{
-                    const cb = item.querySelector('input');
-                    if(e.target !== cb) cb.checked = !cb.checked;
-                    const val = item.getAttribute('data-val');
-                    if(cb.checked){ if(!selectedNameFilters.includes(val)) selectedNameFilters.push(val); }
-                    else { selectedNameFilters = selectedNameFilters.filter(v=> v!==val); }
-                    currentPage = 1; // reset pagination
-                    refreshNameFilterList();
-                    render();
-                });
-            });
-            // Chips
-            if(selectedNameFilters.length){
-                chipsEl.classList.remove('hidden');
-                chipsEl.innerHTML = selectedNameFilters.slice(0,6).map(v=> {
-                    const display = names.find(n=> n.toLowerCase()===v) || v;
-                    return `<span class="chip">${display}<button data-remove="${v}" class="text-indigo-700 hover:text-indigo-900">×</button></span>`;
-                }).join('') + (selectedNameFilters.length>6 ? `<span class="chip bg-gray-100 text-gray-600">+${selectedNameFilters.length-6}</span>`:'');
-                chipsEl.querySelectorAll('button[data-remove]').forEach(btn => btn.addEventListener('click', (e)=>{
-                    const val = btn.getAttribute('data-remove');
-                    selectedNameFilters = selectedNameFilters.filter(v=> v!==val);
-                    refreshNameFilterList();
-                    render();
-                }));
-            } else {
-                chipsEl.classList.add('hidden');
-                chipsEl.innerHTML = '';
-            }
-            // Label
-            if(!selectedNameFilters.length) labelEl.textContent = 'All Names';
-            else if(selectedNameFilters.length === 1) labelEl.textContent = names.find(n=> n.toLowerCase()===selectedNameFilters[0]) || '1 selected';
-            else labelEl.textContent = selectedNameFilters.length + ' selected';
-        }
-    </script>
-</body>
-</html>
+          }
+        } catch(e){ console.warn('Backup failed:', e.message); }
+      };
+      doBackup();
+      setInterval(doBackup, 6 * 60 * 60 * 1000);
+      console.log('[SQLite] Periodic backups enabled.');
+    }
+    if(!usePg && process.env.NODE_ENV === 'production'){
+      console.warn('[WARNING] Running with SQLite in production; on ephemeral hosts data WILL reset. Set DATABASE_URL for Postgres.');
+    }
+  })
+  .then(() => {
+    app.listen(port, () => console.log(`Server running on http://localhost:${port} (driver: ${usePg ? 'postgres':'sqlite'})`));
+  })
+  .catch(err => { console.error('Startup failed', err); process.exit(1); });
