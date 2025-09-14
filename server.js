@@ -4,6 +4,7 @@ import cors from 'cors';
 import sqlite3 from 'sqlite3';
 import fs from 'fs';
 import { fileURLToPath } from 'url';
+import crypto from 'crypto';
 // Postgres optional (installed only if using managed DB)
 let pool = null; // will hold pg Pool when DATABASE_URL provided
 let usePg = !!process.env.DATABASE_URL;
@@ -141,19 +142,60 @@ async function regenerateDualCsv(){
 }
 
 // (Legacy CSV import functionality removed)
-// Simple password middleware (shared secret) for mutating operations
-const ADMIN_PASSWORD = process.env.ADMIN_PASSWORD || '8763951777';
-function requirePassword(req,res,next){
-  const provided = req.headers['x-admin-password'];
-  if(provided && provided === ADMIN_PASSWORD) return next();
-  return res.status(401).json({ error: 'Unauthorized' });
+// Simple session auth: single admin + guest
+const ADMIN_PASSWORD = '8763951777';
+const sessions = new Map(); // sid -> { username, role, created }
+function parseCookies(header){
+  const out = {}; if(!header) return out; header.split(/; */).forEach(p=> { const i=p.indexOf('='); if(i>0){ const k=decodeURIComponent(p.slice(0,i).trim()); const v=decodeURIComponent(p.slice(i+1).trim()); out[k]=v; } }); return out;
+}
+function sessionMiddleware(req,res,next){
+  const cookies = parseCookies(req.headers.cookie||'');
+  const sid = cookies.sid;
+  if(sid && sessions.has(sid)){
+    req.session = sessions.get(sid);
+  }
+  next();
+}
+function requireEditor(req,res,next){
+  if(req.session && req.session.role === 'editor') return next();
+  return res.status(403).json({ error: 'Forbidden' });
 }
 
 // Removed /api/import-csv-once endpoint
 
-app.use(cors());
+app.use(cors({ credentials:true, origin:true }));
 app.use(express.json());
+app.use(sessionMiddleware);
 app.use(express.static(__dirname));
+
+app.post('/api/login', (req,res)=> {
+  const { mode, password, username } = req.body || {};
+  const effective = mode || username; // allow legacy payloads {username:'guest'} or new {mode:'guest'}
+  if(effective === 'guest'){
+    const sid = crypto.randomUUID();
+    sessions.set(sid, { username:'guest', role:'guest', created: Date.now() });
+    res.setHeader('Set-Cookie', `sid=${sid}; HttpOnly; Path=/; SameSite=Lax`);
+    return res.json({ username:'guest', role:'guest' });
+  }
+  if(effective === 'admin'){
+    if(password !== ADMIN_PASSWORD){ return res.status(401).json({ error:'Invalid password' }); }
+    const sid = crypto.randomUUID();
+    sessions.set(sid, { username:'admin', role:'editor', created: Date.now() });
+    res.setHeader('Set-Cookie', `sid=${sid}; HttpOnly; Path=/; SameSite=Lax`);
+    return res.json({ username:'admin', role:'editor' });
+  }
+  return res.status(400).json({ error:'Invalid mode' });
+});
+app.post('/api/logout', (req,res)=> {
+  const cookies = parseCookies(req.headers.cookie||'');
+  if(cookies.sid){ sessions.delete(cookies.sid); }
+  res.setHeader('Set-Cookie','sid=; HttpOnly; Path=/; Max-Age=0; SameSite=Lax');
+  res.json({ ok:true });
+});
+app.get('/api/me', (req,res)=> {
+  if(!req.session) return res.json({ username:null, role:'guest' });
+  res.json({ username:req.session.username, role:req.session.role });
+});
 
 // List transactions (JSON)
 app.get('/api/transactions', async (req, res) => {
@@ -166,7 +208,7 @@ app.get('/api/transactions', async (req, res) => {
 });
 
 // Bulk replace (idempotent save from client state)
-app.post('/api/transactions', requirePassword, async (req, res) => {
+app.post('/api/transactions', requireEditor, async (req, res) => {
   const { transactions } = req.body;
   if (!Array.isArray(transactions)) return res.status(400).json({ error: 'Invalid payload' });
   try {
