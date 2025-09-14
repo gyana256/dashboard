@@ -175,20 +175,22 @@ app.post('/api/transactions', requirePassword, async (req, res) => {
     if(!allowEmpty && transactions.length === 0 && existing[0].c > 0){
       return res.status(400).json({ error: 'Refusing empty save that would delete existing data (set ALLOW_EMPTY_SAVE=1 to override).' });
     }
-    if(usePg){
+  if(usePg){
       await pool.query('BEGIN');
       await pool.query('DELETE FROM transactions');
       for(const t of transactions){
-        if (!t.type || !t.name || !t.date || typeof t.amount !== 'number') continue;
-        await pool.query('INSERT INTO transactions (type,name,date,amount) VALUES ($1,$2,$3,$4)', [t.type, t.name, t.date, t.amount]);
+    const amt = typeof t.amount === 'string' ? parseFloat(t.amount.replace(/[^0-9.+-]/g,'')) : t.amount;
+    if (!t.type || !t.name || !t.date || typeof amt !== 'number' || isNaN(amt)) continue;
+    await pool.query('INSERT INTO transactions (type,name,date,amount) VALUES ($1,$2,$3,$4)', [t.type, t.name, t.date, amt]);
       }
       await pool.query('COMMIT');
     } else {
       await execAsync('BEGIN');
       await execAsync('DELETE FROM transactions');
       for (const t of transactions) {
-        if (!t.type || !t.name || !t.date || typeof t.amount !== 'number') continue;
-        await runAsync('INSERT INTO transactions (type, name, date, amount) VALUES (?,?,?,?)', [t.type, t.name, t.date, t.amount]);
+    const amt = typeof t.amount === 'string' ? parseFloat(t.amount.replace(/[^0-9.+-]/g,'')) : t.amount;
+    if (!t.type || !t.name || !t.date || typeof amt !== 'number' || isNaN(amt)) continue;
+    await runAsync('INSERT INTO transactions (type, name, date, amount) VALUES (?,?,?,?)', [t.type, t.name, t.date, amt]);
       }
       await execAsync('COMMIT');
     }
