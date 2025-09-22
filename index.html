@@ -599,11 +599,19 @@
                     }
                     if(!newTx.length){ console.warn('No transactions parsed from Excel'); return; }
                     confirmModal('Import Excel', `Replace current ${transactions.length} transactions with ${newTx.length} imported?`, 'Import', 'bg-indigo-600 hover:bg-indigo-700', ()=> {
-                        transactions = newTx.map((t,i)=> ({ id:i+1, ...t }));
-                        nextId = transactions.length + 1;
-                        render();
-                        nextSuccessMessage = 'Excel import saved';
-                        persistTransactions();
+                        const doReplace = ()=>{
+                            transactions = newTx.map((t,i)=> ({ id:i+1, ...t }));
+                            nextId = transactions.length + 1;
+                            render();
+                            nextSuccessMessage = 'Excel import saved';
+                            persistTransactions();
+                        };
+                        if(isEditor()){
+                            doReplace();
+                        } else {
+                            // Prompt admin password inline, then replace
+                            promptAdminPasswordAsync().then(()=> doReplace()).catch(()=> showToast('Admin required to import','error'));
+                        }
                     });
                 } catch(err){ console.error('Excel import failed', err); }
                 e.target.value=''; // reset input
@@ -637,6 +645,12 @@
                     nextSuccessMessage = 'Transaction updated';
                 }
             } else {
+                // Prevent duplicate: same name, date, type, amount
+                const exists = transactions.some(t => t.name === name && t.date === date && t.type === type && t.amount === amount);
+                if (exists) {
+                    showToast('Duplicate transaction not added', 'error');
+                    return;
+                }
                 transactions.push({ id: nextId++, type, name, date, amount, createdBy: (currentUser && currentUser.username) || '' });
                 nextSuccessMessage = 'Transaction added';
             }
@@ -682,7 +696,16 @@ function showToast(msg, type='success', duration=2600){
 }
 function persistTransactions(){
     if(!isEditor()) { return; }
-    const sanitized = transactions.map(({id, ...rest}) => ({ ...rest, amount: toNumber(rest.amount) }));
+    // Sanitize amounts and deduplicate by normalized key to avoid accidental duplicate inserts
+    const seen = new Set();
+    const sanitized = [];
+    for(const t of transactions){
+        const key = `${t.type}|${(t.name||'').toString().trim().toLowerCase()}|${t.date}|${toNumber(t.amount)}`;
+        if(seen.has(key)) continue;
+        seen.add(key);
+        sanitized.push({ type: t.type, name: (t.name||'').toString().trim(), date: t.date, amount: toNumber(t.amount), createdBy: t.createdBy||'', updatedBy: t.updatedBy||'' });
+    }
+    console.debug(`[persist] sending ${sanitized.length} items (deduped from ${transactions.length})`);
     fetch('/api/transactions', { method:'POST', credentials:'include', headers:{'Content-Type':'application/json'}, body: JSON.stringify({ transactions: sanitized }) })
         .then(r=> { if(r.status===401) throw new Error('unauth'); if(!r.ok) throw new Error('Save failed'); return r.json(); })
         .then(()=> fetch('/api/transactions', { credentials:'include' }))
@@ -921,8 +944,8 @@ function persistTransactions(){
         handleFormSubmit = function(e){
             e.preventDefault();
             if(!isEditor()){ showToast('Read-only (guest)','error'); return; }
+            // Call original handler which already schedules a debounced persist
             originalHandleFormSubmit(e);
-            persistTransactions();
         };
         const originalHandleEdit = handleEditTransaction;
         handleEditTransaction = function(id){
