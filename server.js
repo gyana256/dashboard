@@ -77,6 +77,8 @@ async function initDb() {
       date DATE NOT NULL,
       amount NUMERIC NOT NULL
     )`);
+    // Ensure uniqueness to avoid accidental duplicate inserts from client races
+    await runAsync(`CREATE UNIQUE INDEX IF NOT EXISTS transactions_unique_idx ON transactions(type,name,date,amount)`);
     // Optional one-time migration from existing SQLite data file
     if(process.env.PG_MIGRATE_FROM_SQLITE === '1'){
       const possibleSqlite = process.env.DB_PATH ? path.resolve(process.env.DB_PATH) : path.join(__dirname, 'data.db');
@@ -109,6 +111,9 @@ async function initDb() {
       } catch(e){ console.warn('[Migration] Error during migration attempt:', e.message); }
     }
   } else {
+              // Add author columns if missing
+              await runAsync(`ALTER TABLE transactions ADD COLUMN IF NOT EXISTS created_by TEXT`);
+              await runAsync(`ALTER TABLE transactions ADD COLUMN IF NOT EXISTS updated_by TEXT`);
     await execAsync(`CREATE TABLE IF NOT EXISTS transactions (
       id INTEGER PRIMARY KEY AUTOINCREMENT,
       type TEXT NOT NULL CHECK(type IN ('income','expenditure')),
@@ -116,7 +121,12 @@ async function initDb() {
       date TEXT NOT NULL,
       amount REAL NOT NULL
     );`);
+    // Add unique index for dedupe
+    await execAsync(`CREATE UNIQUE INDEX IF NOT EXISTS transactions_unique_idx ON transactions(type,name,date,amount);`);
   }
+              // Add author columns for SQLite (ALTER TABLE ADD COLUMN is safe; ignore errors)
+              try { await execAsync(`ALTER TABLE transactions ADD COLUMN created_by TEXT;`); } catch(e){}
+              try { await execAsync(`ALTER TABLE transactions ADD COLUMN updated_by TEXT;`); } catch(e){}
 }
 
 // Regenerate combined dual-column CSV after data changes
@@ -200,8 +210,10 @@ app.get('/api/me', (req,res)=> {
 // List transactions (JSON)
 app.get('/api/transactions', async (req, res) => {
   try {
-    const rows = await allAsync('SELECT * FROM transactions ORDER BY date DESC, id DESC');
-    res.json({ transactions: rows });
+    const rows = await allAsync('SELECT id,type,name,date,amount,created_by,updated_by FROM transactions ORDER BY date DESC, id DESC');
+    // Map to camelCase for client
+    const mapped = rows.map(r=> ({ id: r.id, type: r.type, name: r.name, date: r.date, amount: r.amount, createdBy: r.created_by || null, updatedBy: r.updated_by || null }));
+    res.json({ transactions: mapped });
   } catch (e) {
     res.status(500).json({ error: 'Failed to fetch transactions' });
   }
@@ -223,7 +235,8 @@ app.post('/api/transactions', requireEditor, async (req, res) => {
       for(const t of transactions){
     const amt = typeof t.amount === 'string' ? parseFloat(t.amount.replace(/[^0-9.+-]/g,'')) : t.amount;
     if (!t.type || !t.name || !t.date || typeof amt !== 'number' || isNaN(amt)) continue;
-    await pool.query('INSERT INTO transactions (type,name,date,amount) VALUES ($1,$2,$3,$4)', [t.type, t.name, t.date, amt]);
+    // Use upsert-ignore to avoid inserting duplicates; include author metadata when provided
+    await pool.query('INSERT INTO transactions (type,name,date,amount,created_by,updated_by) VALUES ($1,$2,$3,$4,$5,$6) ON CONFLICT ON CONSTRAINT transactions_unique_idx DO NOTHING', [t.type, t.name, t.date, amt, t.createdBy||t.created_by||null, t.updatedBy||t.updated_by||null]);
       }
       await pool.query('COMMIT');
     } else {
@@ -232,7 +245,8 @@ app.post('/api/transactions', requireEditor, async (req, res) => {
       for (const t of transactions) {
     const amt = typeof t.amount === 'string' ? parseFloat(t.amount.replace(/[^0-9.+-]/g,'')) : t.amount;
     if (!t.type || !t.name || !t.date || typeof amt !== 'number' || isNaN(amt)) continue;
-    await runAsync('INSERT INTO transactions (type, name, date, amount) VALUES (?,?,?,?)', [t.type, t.name, t.date, amt]);
+    // Insert-or-ignore to avoid duplicates; include author metadata where supported
+    await runAsync('INSERT OR IGNORE INTO transactions (type, name, date, amount, created_by, updated_by) VALUES (?,?,?,?,?,?)', [t.type, t.name, t.date, amt, t.createdBy||t.created_by||null, t.updatedBy||t.updated_by||null]);
       }
       await execAsync('COMMIT');
     }
@@ -247,9 +261,9 @@ app.post('/api/transactions', requireEditor, async (req, res) => {
 // Optional export as CSV for download/backups
 app.get('/api/transactions.csv', async (req, res) => {
   try {
-    const rows = await allAsync('SELECT * FROM transactions ORDER BY date ASC, id ASC');
-    let csv = 'type,name,date,amount\n';
-    for (const r of rows) csv += `${r.type},${(r.name||'').replace(/,/g,' ')},${r.date},${r.amount}\n`;
+    const rows = await allAsync('SELECT id,type,name,date,amount,created_by,updated_by FROM transactions ORDER BY date ASC, id ASC');
+    let csv = 'type,name,date,amount,created_by,updated_by\n';
+    for (const r of rows) csv += `${r.type},${(r.name||'').replace(/,/g,' ')},${r.date},${r.amount},${r.created_by||''},${r.updated_by||''}\n`;
     res.type('text/csv').send(csv);
   } catch (e) {
     res.status(500).json({ error: 'Failed to export CSV' });
