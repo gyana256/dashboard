@@ -111,9 +111,6 @@ async function initDb() {
       } catch(e){ console.warn('[Migration] Error during migration attempt:', e.message); }
     }
   } else {
-              // Add author columns if missing
-              await runAsync(`ALTER TABLE transactions ADD COLUMN IF NOT EXISTS created_by TEXT`);
-              await runAsync(`ALTER TABLE transactions ADD COLUMN IF NOT EXISTS updated_by TEXT`);
     await execAsync(`CREATE TABLE IF NOT EXISTS transactions (
       id INTEGER PRIMARY KEY AUTOINCREMENT,
       type TEXT NOT NULL CHECK(type IN ('income','expenditure')),
@@ -305,28 +302,52 @@ async function logDbStatus(){
 
 initDb()
   .then(() => logDbStatus())
-  .then(() => {
+  .then(async () => {
     if(!usePg && process.env.DB_BACKUPS === '1'){
       const backupDir = path.join(path.dirname(dbFile), 'backups');
       try { fs.mkdirSync(backupDir, { recursive: true }); } catch(e) {}
-      const doBackup = () => {
+
+      const doBackup = async () => {
         try {
-          if(fs.existsSync(dbFile)){
-            const stamp = new Date().toISOString().replace(/[:.]/g,'-');
-            const target = path.join(backupDir, `data-${stamp}.db`);
-            fs.copyFileSync(dbFile, target);
-            const files = fs.readdirSync(backupDir).filter(f=>f.endsWith('.db')).sort();
-            if(files.length > 20){
-              for(const f of files.slice(0, files.length-20)){
-                try { fs.unlinkSync(path.join(backupDir,f)); } catch(e){}
-              }
+          // Ensure uniqueness to avoid accidental duplicate inserts from client races
+          try {
+            await runAsync(`CREATE UNIQUE INDEX IF NOT EXISTS transactions_unique_idx ON transactions(type,name,date,amount)`);
+          } catch (ixErr) {
+            console.warn('[DB] Unique index creation failed, attempting to deduplicate existing rows:', ixErr.message);
+            // Remove duplicate rows, keeping the smallest id for each group
+            try {
+              await runAsync(`DELETE FROM transactions WHERE id NOT IN (SELECT MIN(id) FROM transactions GROUP BY type,name,date,amount)`);
+              console.log('[DB] Deduplication complete, retrying index creation');
+              await runAsync(`CREATE UNIQUE INDEX IF NOT EXISTS transactions_unique_idx ON transactions(type,name,date,amount)`);
+            } catch (dedupeErr) {
+              console.error('[DB] Deduplication or index recreation failed:', dedupeErr.message);
+            }
+          }
+          const stamp = new Date().toISOString().replace(/[:.]/g,'-');
+          const target = path.join(backupDir, `data-${stamp}.db`);
+          fs.copyFileSync(dbFile, target);
+          const files = fs.readdirSync(backupDir).filter(f=>f.endsWith('.db')).sort();
+          if(files.length > 20){
+            for(const f of files.slice(0, files.length-20)){
+              try { fs.unlinkSync(path.join(backupDir,f)); } catch(e){}
             }
           }
         } catch(e){ console.warn('Backup failed:', e.message); }
       };
-      doBackup();
-      setInterval(doBackup, 6 * 60 * 60 * 1000);
-      console.log('[SQLite] Periodic backups enabled.');
+
+      await doBackup();
+      setInterval(() => { doBackup().catch(e=>console.warn('Scheduled backup failed:', e.message)); }, 6 * 60 * 60 * 1000);
+      // Add unique index for dedupe; if it fails due to duplicates, remove duplicates and retry
+      try {
+        await execAsync(`CREATE UNIQUE INDEX IF NOT EXISTS transactions_unique_idx ON transactions(type,name,date,amount);`);
+      } catch(ixErr){
+        console.warn('[SQLite] Unique index creation failed, attempting dedupe:', ixErr.message);
+        try { await execAsync(`DELETE FROM transactions WHERE rowid NOT IN (SELECT MIN(rowid) FROM transactions GROUP BY type,name,date,amount);`); } catch(e){}
+        try { await execAsync(`CREATE UNIQUE INDEX IF NOT EXISTS transactions_unique_idx ON transactions(type,name,date,amount);`); } catch(e) { console.error('[SQLite] Failed to create unique index after dedupe', e.message); }
+      }
+      // Add author columns for SQLite (ALTER TABLE ADD COLUMN is safe; ignore errors)
+      try { await execAsync(`ALTER TABLE transactions ADD COLUMN created_by TEXT;`); } catch(e){}
+      try { await execAsync(`ALTER TABLE transactions ADD COLUMN updated_by TEXT;`); } catch(e){}
     }
     if(!usePg && process.env.NODE_ENV === 'production'){
       console.warn('[WARNING] Running with SQLite in production; on ephemeral hosts data WILL reset. Set DATABASE_URL for Postgres.');
