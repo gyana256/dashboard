@@ -243,32 +243,34 @@ app.post('/api/transactions', requireEditor, async (req, res) => {
     if(!allowEmpty && transactions.length === 0 && existing[0].c > 0){
       return res.status(400).json({ error: 'Refusing empty save that would delete existing data (set ALLOW_EMPTY_SAVE=1 to override).' });
     }
-  if(usePg){
+    if(usePg){
       await pool.query('BEGIN');
       await pool.query('DELETE FROM transactions');
       for(const t of transactions){
-    const amt = typeof t.amount === 'string' ? parseFloat(t.amount.replace(/[^0-9.+-]/g,'')) : t.amount;
-    if (!t.type || !t.name || !t.date || typeof amt !== 'number' || isNaN(amt)) continue;
-    // Use upsert-ignore to avoid inserting duplicates; include author metadata when provided
-    await pool.query('INSERT INTO transactions (type,name,date,amount,created_by,updated_by) VALUES ($1,$2,$3,$4,$5,$6) ON CONFLICT ON CONSTRAINT transactions_unique_idx DO NOTHING', [t.type, t.name, t.date, amt, t.createdBy||t.created_by||null, t.updatedBy||t.updated_by||null]);
+        const amt = typeof t.amount === 'string' ? parseFloat(t.amount.replace(/[^0-9.+-]/g,'')) : t.amount;
+        if (!t.type || !t.name || !t.date || typeof amt !== 'number' || isNaN(amt)) continue;
+        // Use upsert-ignore to avoid inserting duplicates; include author metadata when provided
+        await pool.query('INSERT INTO transactions (type,name,date,amount,created_by,updated_by) VALUES ($1,$2,$3,$4,$5,$6) ON CONFLICT ON CONSTRAINT transactions_unique_idx DO NOTHING', [t.type, t.name, t.date, amt, t.createdBy||t.created_by||null, t.updatedBy||t.updated_by||null]);
       }
       await pool.query('COMMIT');
     } else {
       await execAsync('BEGIN');
       await execAsync('DELETE FROM transactions');
       for (const t of transactions) {
-    const amt = typeof t.amount === 'string' ? parseFloat(t.amount.replace(/[^0-9.+-]/g,'')) : t.amount;
-    if (!t.type || !t.name || !t.date || typeof amt !== 'number' || isNaN(amt)) continue;
-    // Insert-or-ignore to avoid duplicates; include author metadata where supported
-    await runAsync('INSERT OR IGNORE INTO transactions (type, name, date, amount, created_by, updated_by) VALUES (?,?,?,?,?,?)', [t.type, t.name, t.date, amt, t.createdBy||t.created_by||null, t.updatedBy||t.updated_by||null]);
+        const amt = typeof t.amount === 'string' ? parseFloat(t.amount.replace(/[^0-9.+-]/g,'')) : t.amount;
+        if (!t.type || !t.name || !t.date || typeof amt !== 'number' || isNaN(amt)) continue;
+        // Insert-or-ignore to avoid duplicates; include author metadata where supported
+        await runAsync('INSERT OR IGNORE INTO transactions (type, name, date, amount, created_by, updated_by) VALUES (?,?,?,?,?,?)', [t.type, t.name, t.date, amt, t.createdBy||t.created_by||null, t.updatedBy||t.updated_by||null]);
       }
       await execAsync('COMMIT');
     }
     regenerateDualCsv();
     res.json({ status: 'ok' });
   } catch (e) {
+    // Enhanced error logging for debugging
+    console.error('[POST /api/transactions] Save failed:', e && e.stack ? e.stack : e);
     if(usePg){ try { await pool.query('ROLLBACK'); } catch(_){} } else { await execAsync('ROLLBACK').catch(()=>{}); }
-    res.status(500).json({ error: 'Failed to save transactions' });
+    res.status(500).json({ error: 'Failed to save transactions', details: (e && e.message) ? e.message : String(e) });
   }
 });
 
