@@ -250,7 +250,7 @@ app.post('/api/transactions', requireEditor, async (req, res) => {
         const amt = typeof t.amount === 'string' ? parseFloat(t.amount.replace(/[^0-9.+-]/g,'')) : t.amount;
         if (!t.type || !t.name || !t.date || typeof amt !== 'number' || isNaN(amt)) continue;
         // Use upsert-ignore to avoid inserting duplicates; include author metadata when provided
-        await pool.query('INSERT INTO transactions (type,name,date,amount,created_by,updated_by) VALUES ($1,$2,$3,$4,$5,$6) ON CONFLICT ON CONSTRAINT transactions_unique_idx DO NOTHING', [t.type, t.name, t.date, amt, t.createdBy||t.created_by||null, t.updatedBy||t.updated_by||null]);
+  await pool.query('INSERT INTO transactions (type,name,date,amount,created_by,updated_by) VALUES ($1,$2,$3,$4,$5,$6) ON CONFLICT (type,name,date,amount) DO NOTHING', [t.type, t.name, t.date, amt, t.createdBy||t.created_by||null, t.updatedBy||t.updated_by||null]);
       }
       await pool.query('COMMIT');
     } else {
@@ -267,10 +267,33 @@ app.post('/api/transactions', requireEditor, async (req, res) => {
     regenerateDualCsv();
     res.json({ status: 'ok' });
   } catch (e) {
-    // Enhanced error logging for debugging
-    console.error('[POST /api/transactions] Save failed:', e && e.stack ? e.stack : e);
+    // Enhanced error logging for debugging: include request/session/transactions summary
+    try {
+      const txCount = Array.isArray(transactions) ? transactions.length : 0;
+      const sample = (Array.isArray(transactions) && transactions.length) ? transactions.slice(0,5).map(t=> ({ type: t.type, name: t.name, date: t.date, amount: t.amount })) : [];
+      console.error('[POST /api/transactions] Save failed:', e && e.stack ? e.stack : e);
+      console.error('[POST /api/transactions] Context:', {
+        session: req.session || null,
+        txCount,
+        sample
+      });
+    } catch(logErr){ console.error('Failed to log save context', logErr); }
     if(usePg){ try { await pool.query('ROLLBACK'); } catch(_){} } else { await execAsync('ROLLBACK').catch(()=>{}); }
-    res.status(500).json({ error: 'Failed to save transactions', details: (e && e.message) ? e.message : String(e) });
+    // Persist failing payload for offline debugging (avoid leaking secrets)
+    try {
+      const dumpDir = path.join(__dirname, 'save-failures');
+      try { fs.mkdirSync(dumpDir, { recursive: true }); } catch(_){}
+      const stamp = new Date().toISOString().replace(/[:.]/g,'-');
+      const out = {
+        timestamp: new Date().toISOString(),
+        session: req.session || null,
+        txCount: Array.isArray(transactions) ? transactions.length : 0,
+        sample: (Array.isArray(transactions) && transactions.length) ? transactions.slice(0,20) : []
+      };
+      try { fs.writeFileSync(path.join(dumpDir, `failed-save-${stamp}.json`), JSON.stringify(out, null, 2), 'utf8'); } catch(writeErr){ console.error('Failed to write save-failure dump', writeErr); }
+    } catch(_){}
+    const details = (e && e.stack) ? String(e.stack).slice(0,2000) : ((e && e.message) ? e.message : String(e));
+    res.status(500).json({ error: 'Failed to save transactions', details });
   }
 });
 
