@@ -33,8 +33,10 @@ const __dirname = path.dirname(fileURLToPath(import.meta.url));
 let dbFile = null; let db = null;
 if(!usePg){
   sqlite3.verbose();
-  dbFile = process.env.DB_PATH ? path.resolve(process.env.DB_PATH) : path.join(__dirname, 'data.db');
-  try { fs.mkdirSync(path.dirname(dbFile), { recursive: true }); } catch(e) {}
+  // Use persistent data directory at project root
+  const dataDir = path.join(process.cwd(), 'data');
+  try { fs.mkdirSync(dataDir, { recursive: true }); } catch(e) {}
+  dbFile = process.env.DB_PATH ? path.resolve(process.env.DB_PATH) : path.join(dataDir, 'data.db');
   db = new sqlite3.Database(dbFile, (err)=> {
     if(err) console.error('Failed to open SQLite DB:', err.message);
     else console.log('[SQLite] Using database file:', dbFile);
