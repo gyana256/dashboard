@@ -37,6 +37,14 @@ if(!usePg){
   const dataDir = path.join(process.cwd(), 'data');
   try { fs.mkdirSync(dataDir, { recursive: true }); } catch(e) {}
   dbFile = process.env.DB_PATH ? path.resolve(process.env.DB_PATH) : path.join(dataDir, 'data.db');
+  // One-time migration: if an old DB exists in the project dir (from previous deploys), copy it to persistent data dir
+  try {
+    const oldPath = path.join(__dirname, 'data.db');
+    if(!process.env.DB_PATH && fs.existsSync(oldPath) && !fs.existsSync(dbFile)){
+      console.log('[Migration] Found legacy DB at', oldPath, '— copying to persistent data dir', dbFile);
+      try { fs.copyFileSync(oldPath, dbFile); console.log('[Migration] Copy complete'); } catch(copyErr){ console.error('[Migration] Failed to copy legacy DB:', copyErr.message); }
+    }
+  } catch(mErr){ console.warn('[Migration] Error while attempting DB migration:', mErr.message); }
   db = new sqlite3.Database(dbFile, (err)=> {
     if(err) console.error('Failed to open SQLite DB:', err.message);
     else console.log('[SQLite] Using database file:', dbFile);
